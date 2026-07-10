@@ -16,6 +16,7 @@ export default async function HomePage() {
         category: c.slug,
         pageSize: PREVIEW_COUNT,
         page: 1,
+        withFacets: false,
       });
       return { category: c, products, totalCount };
     })

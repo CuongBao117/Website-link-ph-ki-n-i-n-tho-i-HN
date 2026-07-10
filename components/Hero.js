@@ -12,11 +12,8 @@ export default function Hero() {
           giao hàng thu tiền (COD) toàn quốc, kiểm tra kỹ trước khi giao.
         </p>
         <div className="hero-ctas">
-          <Link href="/tim-kiem" className="btn-primary">
-            Tìm sản phẩm theo tên máy
-          </Link>
-          <Link href="#danh-muc" className="btn-outline">
-            Xem danh mục
+          <Link href="#danh-muc" className="btn-primary">
+            Xem danh mục sản phẩm
           </Link>
         </div>
       </div>

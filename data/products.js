@@ -2,13 +2,15 @@
 // Dùng khoá anon (công khai, chỉ đọc) — an toàn cho phía trình duyệt.
 
 import { supabase } from "@/lib/supabase";
+import { COMMON_BRANDS } from "@/lib/brands";
 
-// 3 nhóm danh mục lớn cố định — khớp với group_slug lưu trong bảng categories
-// (xem supabase/migration_005_category_groups.sql)
+// 4 nhóm danh mục lớn cố định — khớp với group_slug lưu trong bảng categories
+// (xem supabase/migration_005_category_groups.sql và migration_007_menu_restructure.sql)
 export const CATEGORY_GROUPS = [
   { slug: "linh-kien", name: "Linh kiện" },
   { slug: "phu-kien", name: "Phụ kiện" },
-  { slug: "do-nghe", name: "Đồ nghề" },
+  { slug: "do-nghe", name: "Đồ nghề sửa chữa" },
+  { slug: "do-choi-cong-nghe", name: "Đồ chơi công nghệ" },
 ];
 
 function mapProductRow(row) {
@@ -105,10 +107,19 @@ export async function getRelatedProducts(slug, limit = 4) {
   return data.map(mapProductRow);
 }
 
-// Hàm dùng chung cho trang danh mục (/danh-muc/[slug]) và trang tìm kiếm (/tim-kiem):
-// lọc theo danh mục / từ khoá / hãng / dòng máy-màu (variant) / khoảng giá, sắp xếp, phân trang.
+// Hàm dùng chung cho trang chủ (xem trước theo danh mục), trang danh mục (/danh-muc/[slug])
+// và trang tìm kiếm (/tim-kiem): lọc theo danh mục / từ khoá / hãng / dòng máy-màu (variant) /
+// khoảng giá, sắp xếp, phân trang.
+//
+// QUAN TRỌNG: lọc/sắp xếp/phân trang ĐẨY XUỐNG Postgres (qua .eq/.ilike/.range của Supabase)
+// thay vì kéo hết dữ liệu khớp danh mục về rồi lọc bằng JS như bản cũ — bản cũ với vài nghìn
+// sản phẩm/danh mục sẽ kéo cả nghìn dòng về chỉ để hiện 12 dòng, rất chậm và tốn băng thông.
+//
 // Từ khoá (q) khớp theo TÊN sản phẩm, MÃ sản phẩm, VÀ tên máy/dòng máy (variants) — để khách
 // gõ "iPhone 13" cũng ra được các linh kiện/phụ kiện tương thích, không chỉ đúng tên sản phẩm.
+//
+// withFacets = false: bỏ qua truy vấn tính "hãng"/"dòng máy" cho bộ lọc (VD: trang chủ chỉ xem
+// trước 8 sản phẩm/danh mục, không có UI lọc nên không cần tính facet — đỡ thêm 1 lượt gọi Supabase).
 export async function getFilteredProducts({
   category,
   q,
@@ -119,49 +130,67 @@ export async function getFilteredProducts({
   sort = "default",
   page = 1,
   pageSize = 12,
+  withFacets = true,
 } = {}) {
-  let baseQuery = supabase.from("products").select("*");
-  if (category) baseQuery = baseQuery.eq("category", category);
+  // Áp cùng 1 bộ điều kiện lọc cho cả truy vấn lấy sản phẩm VÀ truy vấn tính facet,
+  // để 2 truy vấn luôn khớp nhau (facet chỉ hiện lựa chọn còn ra kết quả).
+  function applyFilters(builder) {
+    let query = builder;
+    if (category) query = query.eq("category", category);
+    if (brand) query = query.eq("brand", brand);
+    if (variant) query = query.contains("variants", [variant]);
+    if (minPrice) query = query.gte("price", Number(minPrice));
+    if (maxPrice) query = query.lte("price", Number(maxPrice));
 
-  const { data: baseData, error } = await baseQuery;
+    const keyword = (q || "").trim();
+    if (keyword) {
+      // Bỏ dấu % và dấu phẩy để không phá cú pháp bộ lọc ilike/or của PostgREST.
+      const escaped = keyword.replace(/[%,]/g, "");
+      // "variants::text.ilike..." ép cột jsonb "variants" sang text để tìm theo dòng máy —
+      // PostgREST hỗ trợ ép kiểu (::) ngay trong điều kiện lọc.
+      query = query.or(`name.ilike.%${escaped}%,code.ilike.%${escaped}%,variants::text.ilike.%${escaped}%`);
+    }
+    return query;
+  }
+
+  let mainQuery = applyFilters(supabase.from("products").select("*", { count: "exact" }));
+  mainQuery =
+    sort === "price-asc"
+      ? mainQuery.order("price", { ascending: true })
+      : sort === "price-desc"
+      ? mainQuery.order("price", { ascending: false })
+      : mainQuery.order("code", { ascending: true });
+
+  const from = (Math.max(1, page) - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data: rows, error, count } = await mainQuery.range(from, to);
   if (error) {
     console.error("Lỗi tải sản phẩm:", error.message);
     return { products: [], totalCount: 0, facets: { brands: [], variants: [] } };
   }
 
-  let baseList = (baseData || []).map(mapProductRow);
-
-  const keyword = (q || "").trim().toLowerCase();
-  if (keyword) {
-    baseList = baseList.filter(
-      (p) =>
-        p.name.toLowerCase().includes(keyword) ||
-        (p.code || "").toLowerCase().includes(keyword) ||
-        p.variants.some((v) => (v || "").toLowerCase().includes(keyword))
+  let facets = { brands: [], variants: [] };
+  if (withFacets) {
+    // Chỉ lấy 2 cột nhẹ (brand, variants) — không lấy ảnh/thông số kỹ thuật... — để tính danh
+    // sách lựa chọn lọc mà không phải kéo nguyên dòng sản phẩm (vẫn quét theo bộ lọc hiện tại,
+    // nhưng nhẹ hơn nhiều so với "select *").
+    const { data: facetRows, error: facetError } = await applyFilters(
+      supabase.from("products").select("brand, variants")
     );
+    if (facetError) {
+      console.error("Lỗi tải bộ lọc hãng/dòng máy:", facetError.message);
+    } else {
+      const brands = Array.from(
+        new Set([...(facetRows || []).map((p) => p.brand).filter(Boolean), ...COMMON_BRANDS])
+      ).sort();
+      const variantsSet = new Set();
+      (facetRows || []).forEach((p) => (p.variants || []).forEach((v) => v && variantsSet.add(v)));
+      facets = { brands, variants: Array.from(variantsSet).sort() };
+    }
   }
 
-  // Danh sách lựa chọn lọc (hãng, dòng máy/màu) tính từ tập đã lọc theo danh mục + từ khoá,
-  // để bộ lọc luôn hiện đúng lựa chọn còn ra kết quả, không hiện lựa chọn rỗng.
-  const brands = Array.from(new Set(baseList.map((p) => p.brand).filter(Boolean))).sort();
-  const variantsSet = new Set();
-  baseList.forEach((p) => p.variants.forEach((v) => v && variantsSet.add(v)));
-  const variantOptions = Array.from(variantsSet).sort();
-
-  let list = baseList;
-  if (brand) list = list.filter((p) => p.brand === brand);
-  if (variant) list = list.filter((p) => p.variants.includes(variant));
-  if (minPrice) list = list.filter((p) => p.price >= Number(minPrice));
-  if (maxPrice) list = list.filter((p) => p.price <= Number(maxPrice));
-
-  if (sort === "price-asc") list = [...list].sort((a, b) => a.price - b.price);
-  if (sort === "price-desc") list = [...list].sort((a, b) => b.price - a.price);
-
-  const totalCount = list.length;
-  const from = (Math.max(1, page) - 1) * pageSize;
-  const paged = list.slice(from, from + pageSize);
-
-  return { products: paged, totalCount, facets: { brands, variants: variantOptions } };
+  return { products: (rows || []).map(mapProductRow), totalCount: count ?? 0, facets };
 }
 
 export function formatPrice(value) {

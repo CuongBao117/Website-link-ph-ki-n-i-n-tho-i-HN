@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { formatPrice } from "@/data/products";
+import { calcShippingFee } from "@/lib/shipping";
 
 export default function CartPage() {
   const { items, updateQty, removeItem, totalPrice } = useCart();
@@ -76,9 +77,20 @@ export default function CartPage() {
         </tbody>
       </table>
 
-      <div className="cart-summary">
+      <div className="cart-summary" style={{ flexWrap: "wrap" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 13, color: "var(--ink-soft)" }}>
+          <div>Tạm tính: {formatPrice(totalPrice)}</div>
+          <div>
+            Phí vận chuyển:{" "}
+            {calcShippingFee(totalPrice) > 0 ? (
+              formatPrice(calcShippingFee(totalPrice))
+            ) : (
+              <span style={{ color: "var(--teal)", fontWeight: 600 }}>Miễn phí</span>
+            )}
+          </div>
+        </div>
         <div className="cart-total">
-          Tổng cộng: <strong>{formatPrice(totalPrice)}</strong>
+          Tổng cộng: <strong>{formatPrice(totalPrice + calcShippingFee(totalPrice))}</strong>
         </div>
         <Link href="/dat-hang" className="btn-primary cart-checkout-btn">
           Tiến hành đặt hàng

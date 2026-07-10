@@ -52,6 +52,8 @@ export async function placeOrder({ items, customerName, phoneNumber, address, no
   return {
     success: true,
     orderCode: row?.out_order_code,
+    subtotal: row?.out_subtotal,
+    shippingFee: row?.out_shipping_fee,
     totalPrice: row?.out_total_price,
   };
 }

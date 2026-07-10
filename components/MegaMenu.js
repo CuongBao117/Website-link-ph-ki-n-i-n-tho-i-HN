@@ -6,7 +6,8 @@ import Link from "next/link";
 const GROUP_LABELS = {
   "linh-kien": "Linh kiện",
   "phu-kien": "Phụ kiện",
-  "do-nghe": "Đồ nghề",
+  "do-nghe": "Đồ nghề sửa chữa",
+  "do-choi-cong-nghe": "Đồ chơi công nghệ",
 };
 
 // Dropdown hiện/ẩn chủ yếu dựa vào CSS ":hover" (ổn định, không lo khoảng hở vài pixel

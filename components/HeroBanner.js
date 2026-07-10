@@ -5,18 +5,23 @@ import { useEffect, useState } from "react";
 const SLIDES = [
   {
     title: "Linh kiện chính hãng",
-    desc: "Màn hình, pin, camera, cụm sạc... đúng mã, đúng đời máy",
+    desc: "Màn hình, pin máy, camera, cụm sạc, mic... đúng mã, đúng đời máy",
     gradient: "linear-gradient(135deg, #16241f, #2f6f62)",
   },
   {
     title: "Phụ kiện đa dạng",
-    desc: "Ốp lưng, cóc sạc, dây sạc, sạc dự phòng, tai nghe, loa...",
+    desc: "Ốp lưng, cường lực, cáp sạc, củ sạc, bộ sạc, tai nghe, loa...",
     gradient: "linear-gradient(135deg, #a9622c, #c97a3d)",
   },
   {
     title: "Đồ nghề sửa chữa",
     desc: "Dụng cụ tháo lắp chuyên dụng, đầy đủ cho thợ và người tự sửa",
     gradient: "linear-gradient(135deg, #2f6f62, #16241f)",
+  },
+  {
+    title: "Đồ chơi công nghệ",
+    desc: "Thiết bị và phụ kiện công nghệ khác — đang cập nhật thêm",
+    gradient: "linear-gradient(135deg, #4b5750, #16241f)",
   },
 ];
 

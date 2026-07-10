@@ -36,6 +36,9 @@ export default async function Header() {
         <SearchBox />
 
         <div className="header-actions">
+          {/* Tạm ẩn "Tra cứu đơn hàng": bản cũ cho khớp SĐT theo kiểu "chứa" (ilike %...%),
+              không giới hạn số lần thử -> có thể bị dò để xem tên/SĐT/địa chỉ người khác.
+              Sẽ làm lại sau khi có đăng nhập khách hàng, để chỉ xem được đơn của chính mình. */}
           <CartBadge className="header-action-btn header-action-btn--primary" />
         </div>
       </header>

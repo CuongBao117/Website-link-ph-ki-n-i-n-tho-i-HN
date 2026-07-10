@@ -1,15 +1,23 @@
 "use client";
+
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { formatPrice } from "@/data/products";
-import { supabase } from '../../lib/supabase';
+import { calcShippingFee } from "@/lib/shipping";
+import { placeOrder } from "./actions";
 
 export default function CheckoutPage() {
   const { items, totalPrice, clearCart } = useCart();
   const [form, setForm] = useState({ name: "", phone: "", address: "", note: "" });
   const [submitted, setSubmitted] = useState(false);
-  const [orderCode, setOrderCode] = useState("");
-  const [loading, setLoading] = useState(false); // Trạng thái đợi lưu database
+  const [orderResult, setOrderResult] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Ước tính hiển thị trước khi đặt — số THẬT (không thể bị sửa qua trình duyệt) được tính lại
+  // ở server trong place_order() và hiện ra ở màn hình "Đặt hàng thành công" bên dưới.
+  const estimatedShipping = calcShippingFee(totalPrice);
+  const estimatedTotal = totalPrice + estimatedShipping;
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -18,51 +26,42 @@ export default function CheckoutPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (loading) return;
-
     setLoading(true);
-    // Giữ nguyên cách tạo mã đơn hàng dạng DHxxxxxxxx thông minh của bạn
-    const code = "DH" + Date.now().toString().slice(-8);
+    setError("");
 
-    try {
-      // Thực hiện đẩy dữ liệu thật lên bảng 'orders' của Supabase
-      const { error } = await supabase
-        .from('orders')
-        .insert([
-          {
-            order_code: code,
-            customer_name: form.name,
-            phone_number: form.phone,
-            address: form.address,
-            note: form.note,
-            total_price: totalPrice,
-            cart_items: items, // Lưu toàn bộ mảng sản phẩm dạng JSONB
-            status: 'Chờ xác nhận'
-          }
-        ]);
+    const res = await placeOrder({
+      items: items.map((i) => ({ slug: i.slug, variant: i.variant, qty: i.qty })),
+      customerName: form.name,
+      phoneNumber: form.phone,
+      address: form.address,
+      note: form.note,
+    });
 
-      if (error) throw error;
+    setLoading(false);
 
-      // Nếu không có lỗi, tiến hành cập nhật trạng thái giao diện thành công
-      setOrderCode(code);
-      setSubmitted(true);
-      clearCart();
-    } catch (error) {
-      console.error("Lỗi lưu đơn hàng vào Database:", error);
-      alert("Có lỗi xảy ra khi gửi đơn hàng lên hệ thống. Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau!");
-    } finally {
-      setLoading(false);
+    if (!res.success) {
+      setError(res.error || "Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại.");
+      return;
     }
+
+    setOrderResult(res);
+    setSubmitted(true);
+    clearCart();
   }
 
-  if (submitted) {
+  if (submitted && orderResult) {
     return (
       <main>
         <div className="section-head">
           <h2>Đặt hàng thành công</h2>
-          <span className="idx">{orderCode}</span>
+          <span className="idx">{orderResult.orderCode}</span>
         </div>
         <div className="empty-state" style={{ textAlign: "left" }}>
-          Cảm ơn bạn! Đơn hàng mã <strong>{orderCode}</strong> đã được ghi nhận vào hệ thống thật.
+          Cảm ơn bạn! Đơn hàng mã <strong>{orderResult.orderCode}</strong> đã được ghi nhận.
+          <br />
+          Tạm tính: {formatPrice(orderResult.subtotal)} · Phí vận chuyển:{" "}
+          {orderResult.shippingFee > 0 ? formatPrice(orderResult.shippingFee) : "Miễn phí"} · Tổng thu (COD):{" "}
+          <strong>{formatPrice(orderResult.totalPrice)}</strong>
           <br />
           Bên bán sẽ gọi điện xác nhận trước khi giao hàng thu tiền (COD).
         </div>
@@ -73,9 +72,7 @@ export default function CheckoutPage() {
   if (items.length === 0) {
     return (
       <main>
-        <div className="empty-state">
-          Giỏ hàng đang trống, không có gì để đặt hàng.
-        </div>
+        <div className="empty-state">Giỏ hàng đang trống, không có gì để đặt hàng.</div>
       </main>
     );
   }
@@ -107,13 +104,19 @@ export default function CheckoutPage() {
           <label>Ghi chú (không bắt buộc)</label>
           <textarea name="note" value={form.note} onChange={handleChange} rows="3" />
 
-          <button 
-            type="submit" 
-            className="btn-primary" 
-            style={{ marginTop: 16, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+          {error && (
+            <div className="empty-state" style={{ color: "#B0503A", textAlign: "left", padding: 14 }}>
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="btn-primary"
+            style={{ marginTop: 16, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}
             disabled={loading}
           >
-            {loading ? "Đang xử lý lưu đơn hàng..." : "Xác nhận đặt hàng — COD"}
+            {loading ? "Đang xử lý..." : "Xác nhận đặt hàng — COD"}
           </button>
         </form>
 
@@ -127,9 +130,21 @@ export default function CheckoutPage() {
               <span>{formatPrice(item.price * item.qty)}</span>
             </div>
           ))}
+
+          <div className="checkout-line">
+            <span>Tạm tính</span>
+            <span>{formatPrice(totalPrice)}</span>
+          </div>
+          <div className="checkout-line">
+            <span>Phí vận chuyển</span>
+            <span className={estimatedShipping === 0 ? "checkout-line-free" : ""}>
+              {estimatedShipping > 0 ? formatPrice(estimatedShipping) : "Miễn phí"}
+            </span>
+          </div>
+
           <div className="checkout-total">
             <span>Tổng cộng</span>
-            <strong>{formatPrice(totalPrice)}</strong>
+            <strong>{formatPrice(estimatedTotal)}</strong>
           </div>
         </div>
       </div>

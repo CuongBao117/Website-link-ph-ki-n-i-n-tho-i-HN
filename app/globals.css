@@ -53,6 +53,8 @@ a {
   padding: 6px 24px;
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 20px;
   letter-spacing: 0.03em;
 }
 .topbar .copper {
@@ -110,10 +112,43 @@ header.site-header {
 }
 .header-actions {
   display: flex;
-  gap: 22px;
+  gap: 12px;
   align-items: center;
   font-size: 13px;
   white-space: nowrap;
+}
+.header-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s, background 0.15s, transform 0.1s;
+}
+.header-action-btn:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+  background: var(--teal-soft);
+}
+.header-action-btn--primary {
+  background: var(--copper);
+  border-color: var(--copper);
+  color: #fff;
+}
+.header-action-btn--primary:hover {
+  background: var(--copper-dark);
+  border-color: var(--copper-dark);
+  color: #fff;
+  transform: translateY(-1px);
+}
+.header-action-btn--primary .cart-badge {
+  background: #fff;
+  color: var(--copper-dark);
 }
 .cart-badge {
   background: var(--copper);
@@ -559,20 +594,20 @@ footer a {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 24px;
-  font-size: 13.5px;
+  font-size: 15px;
 }
 .cart-table th {
   text-align: left;
   font-family: var(--font-mono), monospace;
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--ink-soft);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   border-bottom: 1px solid var(--ink);
-  padding: 8px 10px;
+  padding: 10px 12px;
 }
 .cart-table td {
-  padding: 14px 10px;
+  padding: 16px 12px;
   border-bottom: 1px solid var(--line);
   vertical-align: middle;
 }
@@ -667,6 +702,17 @@ footer a {
   padding: 8px 0;
   border-bottom: 1px dashed var(--line);
   color: var(--ink-soft);
+}
+.checkout-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 6px 0;
+  color: var(--ink-soft);
+}
+.checkout-line-free {
+  color: var(--teal);
+  font-weight: 600;
 }
 .checkout-total {
   display: flex;
@@ -898,7 +944,10 @@ footer a {
 }
 
 /* ===== Mega menu (thay cho catnav phẳng cũ) ===== */
-.mega-nav {
+/* Dùng selector "nav.catnav.mega-nav" (độ đặc hiệu cao hơn rule "nav.catnav" phía trên)
+   để overflow: visible thắng được overflow-x: auto cũ — nếu không, overflow-x: auto sẽ
+   ép luôn overflow-y thành auto, cắt mất bảng .mega-panel xổ xuống bên dưới. */
+nav.catnav.mega-nav {
   position: relative;
   align-items: stretch;
   overflow: visible;

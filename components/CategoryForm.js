@@ -33,7 +33,8 @@ export default function CategoryForm({ action, defaultValues, isEdit }) {
       >
         <option value="linh-kien">Linh kiện</option>
         <option value="phu-kien">Phụ kiện</option>
-        <option value="do-nghe">Đồ nghề</option>
+        <option value="do-nghe">Đồ nghề sửa chữa</option>
+        <option value="do-choi-cong-nghe">Đồ chơi công nghệ</option>
       </select>
 
       <button type="submit" className="btn-primary" style={{ marginTop: 16 }}>

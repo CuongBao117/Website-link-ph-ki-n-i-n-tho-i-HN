@@ -51,10 +51,6 @@ export default function ProductForm({ action, categories, defaultValues, isEdit 
           <label>Giá gốc (đ) — để trống nếu không giảm giá</label>
           <input type="number" name="oldPrice" defaultValue={v.oldPrice || ""} placeholder="1050000" min="0" />
         </div>
-        <div style={{ flex: 1 }}>
-          <label>Tồn kho</label>
-          <input type="number" name="stock" defaultValue={v.stock ?? 0} placeholder="10" required min="0" />
-        </div>
       </div>
 
       <label>Các dòng máy / phiên bản (cách nhau bằng dấu phẩy)</label>

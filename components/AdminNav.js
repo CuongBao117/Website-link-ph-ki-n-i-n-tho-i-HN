@@ -45,26 +45,29 @@ export default function AdminNav() {
             key={link.href}
             href={link.href}
             style={{
-              color: isActive ? "#fff" : "#9AAFA6",
+              color: isActive ? "var(--ink)" : "#C7D6CE",
               textDecoration: "none",
-              fontWeight: isActive ? 700 : 400,
-              borderBottom: isActive ? "2px solid #E3A06D" : "2px solid transparent",
-              paddingBottom: 4,
+              fontWeight: isActive ? 700 : 600,
+              background: isActive ? "#E3A06D" : "transparent",
+              padding: "8px 16px",
+              borderRadius: 999,
+              fontSize: 14,
               display: "flex",
               alignItems: "center",
               gap: 6,
+              transition: "background 0.15s, color 0.15s",
             }}
           >
             {link.label}
             {link.href === "/admin/orders" && pendingCount > 0 && (
               <span
                 style={{
-                  background: "#E3A06D",
-                  color: "var(--ink)",
-                  fontSize: 10.5,
+                  background: isActive ? "var(--ink)" : "#E3A06D",
+                  color: isActive ? "#E3A06D" : "var(--ink)",
+                  fontSize: 11,
                   fontWeight: 700,
                   borderRadius: 999,
-                  padding: "1px 6px",
+                  padding: "1px 7px",
                   fontFamily: "var(--font-mono), monospace",
                 }}
               >

@@ -21,8 +21,8 @@ function parseSpecs(text) {
     .filter((pair) => pair.length === 2 && pair[0] && pair[1]);
 }
 
-// T?i NHI?U ?nh s?n ph?m lên Supabase Storage (bucket "product-images"), tr? v? m?ng URL công khai.
-// ?nh nào l?i s? b? b? qua (log l?i), không ch?n vi?c luu s?n ph?m.
+// Tải NHIỀU ảnh sản phẩm lên Supabase Storage (bucket "product-images"), trả về mảng URL công khai.
+// Ảnh nào lỗi sẽ bị bỏ qua (log lại), không chặn việc lưu sản phẩm.
 async function uploadProductImages(files, slug) {
   const validFiles = (files || []).filter((f) => f && typeof f === "object" && f.size > 0);
   if (validFiles.length === 0) return [];
@@ -37,7 +37,7 @@ async function uploadProductImages(files, slug) {
         .upload(path, file, { upsert: true, contentType: file.type || undefined });
 
       if (error) {
-        console.error("L?i t?i ?nh s?n ph?m lên:", error.message);
+        console.error("Lỗi tải ảnh sản phẩm lên:", error.message);
         return null;
       }
 
@@ -62,15 +62,15 @@ async function buildProductPayload(formData, slug) {
   const variants = parseVariants(formData.get("variants"));
   const oldPriceRaw = formData.get("oldPrice");
 
-  // ?nh gi? l?i (t? ?nh cu, ngu?i dùng có th? da xoá b?t) + ?nh m?i t?i lên, theo dúng th? t? hi?n th?.
+  // Ảnh giữ lại (từ ảnh cũ, người dùng có thể đã xoá bớt) + ảnh mới tải lên, theo đúng thứ tự hiển thị.
   const keepImages = parseKeepImages(formData.get("keepImages"));
   const newImageFiles = formData.getAll("newImages");
   const uploadedUrls = await uploadProductImages(newImageFiles, slug);
   const images = [...keepImages, ...uploadedUrls];
 
-  // Shop hi?m khi h?t hàng nên không qu?n ly t?n kho theo t?ng s?n ph?m n?a  d?t c? d?nh
-  // 1 s? l?n d? logic d?t hàng (place_order()) không bao gi? ch?n nh?m vì "h?t hàng", mà v?n
-  // gi? du?c co ch? ch?ng bán vu?t t?n kho trong database phòng tru?ng h?p c?n dùng l?i sau này.
+  // Shop hiếm khi hết hàng nên không quản lý tồn kho theo từng sản phẩm nữa — đặt cố định
+  // 1 số lớn để logic đặt hàng (place_order()) không bao giờ chặn nhầm vì "hết hàng", mà vẫn
+  // giữ được cơ chế chống bán vượt tồn kho trong database phòng trường hợp cần dùng lại sau này.
   const STOCK_PLACEHOLDER = 9999;
 
   return {
@@ -85,13 +85,13 @@ async function buildProductPayload(formData, slug) {
     default_variant: formData.get("defaultVariant")?.trim() || variants[0] || null,
     specs: parseSpecs(formData.get("specs")),
     images,
-    image_url: images[0] || null, // ?nh d?i di?n  v?n gi? c?t này d? tuong thích các ch? code cu
+    image_url: images[0] || null, // ảnh đại diện — vẫn giữ cột này để tương thích các chỗ code cũ
   };
 }
 
 export async function createProduct(formData) {
-  // Server Action g?i du?c tr?c ti?p t? trình duy?t (b? qua layout admin) nên ph?i t? ki?m tra
-  // dang nh?p ngay t?i dây  xem gi?i thích chi ti?t trong lib/adminAuth.js (requireAdmin).
+  // Server Action gọi được trực tiếp từ trình duyệt (bỏ qua layout admin) nên phải tự kiểm tra
+  // đăng nhập ngay tại đây — xem giải thích chi tiết trong lib/adminAuth.js (requireAdmin).
   if (!isAdminAuthed()) {
     redirect("/admin/login");
   }
@@ -102,7 +102,7 @@ export async function createProduct(formData) {
   if (!slug) {
     redirect(
       `/admin/products/new?error=${encodeURIComponent(
-        "Ma s?n ph?m (slug) không h?p l?  vui lòng nh?p ít nh?t 1 ch? ho?c s?."
+        "Mã sản phẩm (slug) không hợp lệ — vui lòng nhập ít nhất 1 chữ hoặc số."
       )}`
     );
   }
@@ -112,10 +112,10 @@ export async function createProduct(formData) {
   const { error } = await supabaseAdmin.from("products").insert(payload);
 
   if (error) {
-    console.error("L?i thêm s?n ph?m:", error.message);
+    console.error("Lỗi thêm sản phẩm:", error.message);
     const message =
       error.code === "23505"
-        ? `Ma s?n ph?m "${slug}" da t?n t?i  hay d?i tên s?n ph?m ho?c t? d?t slug khác r?i th? l?i.`
+        ? `Mã sản phẩm "${slug}" đã tồn tại — hãy đổi tên sản phẩm hoặc tự đặt slug khác rồi thử lại.`
         : error.message;
     redirect(`/admin/products/new?error=${encodeURIComponent(message)}`);
   }
@@ -135,7 +135,7 @@ export async function updateProduct(slug, formData) {
   const { error } = await supabaseAdmin.from("products").update(payload).eq("slug", slug);
 
   if (error) {
-    console.error("L?i c?p nh?t s?n ph?m:", error.message);
+    console.error("Lỗi cập nhật sản phẩm:", error.message);
     redirect(`/admin/products/${slug}/edit?error=${encodeURIComponent(error.message)}`);
   }
 
@@ -152,7 +152,7 @@ export async function deleteProduct(slug) {
   const { error } = await supabaseAdmin.from("products").delete().eq("slug", slug);
 
   if (error) {
-    console.error("L?i xoá s?n ph?m:", error.message);
+    console.error("Lỗi xoá sản phẩm:", error.message);
     return { success: false, error: error.message };
   }
 

@@ -26,13 +26,13 @@ export default function ProtectedAdminLayout({ children }) {
       >
         <AdminNav />
         <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-          
+          <a
             href="/"
             target="_blank"
             rel="noreferrer"
             style={{ color: "#DDE6E1", textDecoration: "none" }}
           >
-            Xem c?a hàng 
+            Xem cửa hàng ↗
           </a>
           <form action={logout}>
             <button
@@ -48,7 +48,7 @@ export default function ProtectedAdminLayout({ children }) {
                 fontSize: 11,
               }}
             >
-              Dang xu?t
+              Đăng xuất
             </button>
           </form>
         </div>

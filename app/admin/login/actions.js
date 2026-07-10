@@ -8,7 +8,7 @@ export async function login(formData) {
   const password = formData.get("password");
 
   if (isCorrectAdminPassword(password)) {
-    // Cookie gi? ch? luu ch? ky HMAC (xem lib/adminAuth.js)  không còn luu th?ng m?t kh?u n?a.
+    // Cookie giờ chỉ lưu chữ ký HMAC (xem lib/adminAuth.js) — không còn lưu thẳng mật khẩu nữa.
     cookies().set(ADMIN_COOKIE_NAME, createAdminSessionValue(), {
       httpOnly: true,
       path: "/",

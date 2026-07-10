@@ -16,13 +16,13 @@ export async function createCategory(formData) {
   const groupSlug = formData.get("groupSlug")?.trim() || "linh-kien";
 
   if (!slug || !code || !name) {
-    redirect(`/admin/categories/new?error=${encodeURIComponent("Vui lòng di?n d? thông tin.")}`);
+    redirect(`/admin/categories/new?error=${encodeURIComponent("Vui lòng điền đủ thông tin.")}`);
   }
 
   const { error } = await supabaseAdmin.from("categories").insert({ slug, code, name, group_slug: groupSlug });
 
   if (error) {
-    console.error("L?i thêm danh m?c:", error.message);
+    console.error("Lỗi thêm danh mục:", error.message);
     redirect(`/admin/categories/new?error=${encodeURIComponent(error.message)}`);
   }
 
@@ -46,7 +46,7 @@ export async function updateCategory(slug, formData) {
     .eq("slug", slug);
 
   if (error) {
-    console.error("L?i c?p nh?t danh m?c:", error.message);
+    console.error("Lỗi cập nhật danh mục:", error.message);
     redirect(`/admin/categories/${slug}/edit?error=${encodeURIComponent(error.message)}`);
   }
 
@@ -59,7 +59,7 @@ export async function deleteCategory(slug) {
   const authError = requireAdmin();
   if (authError) return authError;
 
-  // Không cho xoá n?u v?n còn s?n ph?m thu?c danh m?c này  tránh s?n ph?m b? "m? côi" danh m?c.
+  // Không cho xoá nếu vẫn còn sản phẩm thuộc danh mục này — tránh sản phẩm bị "mồ côi" danh mục.
   const { count, error: countError } = await supabaseAdmin
     .from("products")
     .select("*", { count: "exact", head: true })
@@ -72,7 +72,7 @@ export async function deleteCategory(slug) {
   if ((count ?? 0) > 0) {
     return {
       success: false,
-      error: `Không th? xoá  v?n còn ${count} s?n ph?m thu?c danh m?c này. Hay chuy?n ho?c xoá các s?n ph?m dó tru?c.`,
+      error: `Không thể xoá — vẫn còn ${count} sản phẩm thuộc danh mục này. Hãy chuyển hoặc xoá các sản phẩm đó trước.`,
     };
   }
 

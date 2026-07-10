@@ -5,20 +5,20 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isAdminAuthed } from "@/lib/adminAuth";
 
-// Dùng d? polling t? trang admin (xem AdminLiveOrders.js): tr? v? s? don dang "Ch? xác nh?n"
-// và id c?a vài don m?i nh?t, d? nh?n bi?t khi nào CO don m?i xu?t hi?n k? t? l?n ki?m tra tru?c.
-// Có ki?m tra dang nh?p admin ngay trong action vì Server Action có th? b? g?i tr?c ti?p t? client.
+// Dùng để polling từ trang admin (xem AdminLiveOrders.js): trả về số đơn đang "Chờ xác nhận"
+// và id của vài đơn mới nhất, để nhận biết khi nào CÓ đơn mới xuất hiện kể từ lần kiểm tra trước.
+// Có kiểm tra đăng nhập admin ngay trong action vì Server Action có thể bị gọi trực tiếp từ client.
 export async function getPendingOrdersSnapshot() {
   if (!isAdminAuthed()) {
     return { count: 0, latestIds: [] };
   }
 
   const [{ count }, { data: latest }] = await Promise.all([
-    supabaseAdmin.from("orders").select("*", { count: "exact", head: true }).eq("status", "Ch? xác nh?n"),
+    supabaseAdmin.from("orders").select("*", { count: "exact", head: true }).eq("status", "Chờ xác nhận"),
     supabaseAdmin
       .from("orders")
       .select("id, order_code, customer_name")
-      .eq("status", "Ch? xác nh?n")
+      .eq("status", "Chờ xác nhận")
       .order("created_at", { ascending: false })
       .limit(30),
   ]);
@@ -32,7 +32,7 @@ export async function getPendingOrdersSnapshot() {
 
 export async function updateOrderStatus(orderId, newStatus) {
   if (!isAdminAuthed()) {
-    return { success: false, error: "Không có quy?n truy c?p" };
+    return { success: false, error: "Không có quyền truy cập" };
   }
 
   const { error } = await supabaseAdmin
@@ -41,7 +41,7 @@ export async function updateOrderStatus(orderId, newStatus) {
     .eq("id", orderId);
 
   if (error) {
-    console.error("L?i c?p nh?t tr?ng thái don hàng:", error);
+    console.error("Lỗi cập nhật trạng thái đơn hàng:", error);
     return { success: false };
   }
 
@@ -60,11 +60,11 @@ function parseItemsJson(text) {
   }
 }
 
-// S?a thông tin khách hàng + danh sách s?n ph?m trong 1 don hàng (dùng ? trang chi ti?t don).
-// T?ng ti?n luôn du?c TINH L?I t? don giá x s? lu?ng phía server, không tin s? li?u client g?i lên.
+// Sửa thông tin khách hàng + danh sách sản phẩm trong 1 đơn hàng (dùng ở trang chi tiết đơn).
+// Tổng tiền luôn được TÍNH LẠI từ đơn giá x số lượng phía server, không tin số liệu client gửi lên.
 export async function updateOrderDetails(orderId, formData) {
   if (!isAdminAuthed()) {
-    redirect(`/admin/orders/${orderId}?error=${encodeURIComponent("Không có quy?n truy c?p")}`);
+    redirect(`/admin/orders/${orderId}?error=${encodeURIComponent("Không có quyền truy cập")}`);
   }
 
   const items = parseItemsJson(formData.get("itemsJson"))
@@ -74,7 +74,7 @@ export async function updateOrderDetails(orderId, formData) {
   if (items.length === 0) {
     redirect(
       `/admin/orders/${orderId}?error=${encodeURIComponent(
-        "Don hàng ph?i còn ít nh?t 1 s?n ph?m  n?u mu?n hu? c? don, hay d?i tr?ng thái thành 'Da hu?' thay vì xoá h?t s?n ph?m."
+        "Đơn hàng phải còn ít nhất 1 sản phẩm — nếu muốn huỷ cả đơn, hãy đổi trạng thái thành 'Đã huỷ' thay vì xoá hết sản phẩm."
       )}`
     );
   }
@@ -94,7 +94,7 @@ export async function updateOrderDetails(orderId, formData) {
     .eq("id", orderId);
 
   if (error) {
-    console.error("L?i c?p nh?t don hàng:", error.message);
+    console.error("Lỗi cập nhật đơn hàng:", error.message);
     redirect(`/admin/orders/${orderId}?error=${encodeURIComponent(error.message)}`);
   }
 

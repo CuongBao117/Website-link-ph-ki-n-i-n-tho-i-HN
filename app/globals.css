@@ -127,6 +127,13 @@ header.site-header {
   font-size: 13px;
   white-space: nowrap;
 }
+.header-user-name {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.header-user-name b {
+  color: var(--ink);
+}
 .header-action-btn {
   display: inline-flex;
   align-items: center;

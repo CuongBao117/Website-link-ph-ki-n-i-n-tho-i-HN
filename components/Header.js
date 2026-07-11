@@ -40,6 +40,9 @@ export default async function Header() {
         <div className="header-actions">
           {user ? (
             <>
+              <span className="header-user-name">
+                Xin chào, <b>{user.user_metadata?.full_name || user.email}</b>
+              </span>
               <Link href="/don-hang-cua-toi" className="header-action-btn">
                 Đơn hàng của tôi
               </Link>

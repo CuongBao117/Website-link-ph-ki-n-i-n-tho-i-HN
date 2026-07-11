@@ -1036,10 +1036,9 @@ nav.catnav.mega-nav {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 12px;
-  /* KHÔNG dùng overflow:hidden ở đây — flyout danh mục con cần tràn ra ngoài khung này */
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  position: relative;
 }
 .hero-cat-head {
   background: var(--ink);
@@ -1050,17 +1049,13 @@ nav.catnav.mega-nav {
   display: flex;
   align-items: center;
   gap: 8px;
-  border-radius: 12px 12px 0 0;
 }
 .hero-cat-list {
   display: flex;
   flex-direction: column;
   flex: 1;
-  border-radius: 0 0 12px 12px;
-  overflow: hidden;
 }
 .hero-cat-item-wrap {
-  position: relative;
   border-bottom: 1px solid var(--bg);
 }
 .hero-cat-item-wrap:last-child {
@@ -1086,59 +1081,40 @@ nav.catnav.mega-nav {
   background: var(--teal-soft);
   color: var(--teal);
 }
+.hero-cat-item-wrap.open .hero-cat-item {
+  background: var(--teal-soft);
+  color: var(--teal);
+}
 .hero-cat-icon {
   font-size: 18px;
 }
 .hero-cat-caret {
   margin-left: auto;
-  font-size: 15px;
+  font-size: 11px;
   color: var(--ink-soft);
+  transition: transform 0.15s;
 }
-
-/* danh mục con — hiện khi hover/bấm vào danh mục lớn tương ứng */
-.hero-cat-flyout {
-  display: none;
-  flex-direction: column;
-  position: absolute;
-  left: 100%;
-  top: 0;
-  min-width: 220px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-left: 2px solid var(--teal);
-  border-radius: 0 12px 12px 0;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
-  padding: 6px 0;
-  z-index: 60;
-}
-.hero-cat-item-wrap:hover .hero-cat-flyout,
-.hero-cat-item-wrap.open .hero-cat-flyout {
-  display: flex;
-}
-.hero-cat-flyout a {
-  padding: 9px 18px;
-  font-size: 13.5px;
-  color: var(--ink);
-  text-decoration: none;
-  white-space: nowrap;
-}
-.hero-cat-flyout a:hover {
-  background: var(--teal-soft);
+.hero-cat-item-wrap.open .hero-cat-caret {
+  transform: rotate(180deg);
   color: var(--teal);
 }
 
-@media (max-width: 900px) {
-  .hero-cat-flyout {
-    position: static;
-    border-radius: 0;
-    border: none;
-    border-top: 1px dashed var(--line);
-    box-shadow: none;
-    padding: 4px 0 8px;
-  }
-  .hero-cat-flyout a {
-    padding: 8px 18px 8px 44px;
-  }
+/* danh mục con — xổ ngay trong bảng, ngay dưới danh mục lớn tương ứng */
+.hero-cat-sublist {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  padding: 4px 0 8px;
+}
+.hero-cat-sublist a {
+  padding: 8px 18px 8px 48px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+.hero-cat-sublist a:hover {
+  color: var(--teal);
+  text-decoration: underline;
 }
 
 /* banner bên phải — giữ nguyên nội dung/slogan hiện có, chỉ đổi khung hiển thị */

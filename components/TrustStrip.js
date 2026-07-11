@@ -1,8 +1,8 @@
 const items = [
-  { code: "01", label: "Ship COD toàn quốc" },
-  { code: "02", label: "Bảo hành 1 đổi 1" },
-  { code: "03", label: "Kiểm tra trước khi giao" },
-  { code: "04", label: "Đổi trả trong 7 ngày" },
+  { code: "🚚", label: "Ship COD toàn quốc" },
+  { code: "🛡️", label: "Bảo hành 1 đổi 1" },
+  { code: "✅", label: "Kiểm tra trước khi giao" },
+  { code: "↩️", label: "Đổi trả trong 7 ngày" },
 ];
 
 export default function TrustStrip() {

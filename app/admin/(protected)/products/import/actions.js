@@ -89,11 +89,16 @@ export async function importProductsFromCsv(formData) {
   }
 
   // Lấy trước danh sách slug danh mục hợp lệ — chặn sản phẩm gán vào danh mục không tồn tại.
-  const { data: categories, error: catError } = await supabaseAdmin.from("categories").select("slug");
+  // Chỉ tính danh mục ĐANG thuộc 1 nhóm lớn (group_slug khác null) là hợp lệ — danh mục đã bị
+  // gỡ khỏi menu (xem /admin/categories) không cho nhập sản phẩm mới vào nữa, tránh sản phẩm
+  // vừa nhập xong đã "mất tích" khỏi trang chủ/mega menu.
+  const { data: categories, error: catError } = await supabaseAdmin
+    .from("categories")
+    .select("slug, group_slug");
   if (catError) {
     return { success: false, error: `Lỗi tải danh mục để kiểm tra: ${catError.message}` };
   }
-  const validCategorySlugs = new Set((categories || []).map((c) => c.slug));
+  const validCategorySlugs = new Set((categories || []).filter((c) => c.group_slug).map((c) => c.slug));
 
   const validRows = [];
   const rowErrors = [];

@@ -6,12 +6,21 @@ import ProductForm from "@/components/ProductForm";
 export const dynamic = "force-dynamic";
 
 export default async function EditProductPage({ params, searchParams }) {
-  const [{ data: product }, { data: categories }] = await Promise.all([
+  const [{ data: product }, { data: groups }, { data: categories }] = await Promise.all([
     supabaseAdmin.from("products").select("*").eq("slug", params.slug).maybeSingle(),
-    supabaseAdmin.from("categories").select("*").order("code"),
+    supabaseAdmin.from("category_groups").select("*").order("display_order"),
+    supabaseAdmin.from("categories").select("*").order("display_order"),
   ]);
 
   if (!product) return notFound();
+
+  // Chỉ liệt kê danh mục đang thuộc 1 nhóm lớn — ProductForm tự xử lý riêng trường hợp sản
+  // phẩm đang ở 1 danh mục mồ côi (đã gỡ khỏi menu) bằng cảnh báo, không cần lọc thêm ở đây.
+  const categoryGroups = (groups || []).map((g) => ({
+    slug: g.slug,
+    name: g.name,
+    categories: (categories || []).filter((c) => c.group_slug === g.slug),
+  }));
 
   const defaultValues = {
     slug: product.slug,
@@ -49,7 +58,7 @@ export default async function EditProductPage({ params, searchParams }) {
 
       <ProductForm
         action={boundUpdateProduct}
-        categories={categories || []}
+        categoryGroups={categoryGroups}
         defaultValues={defaultValues}
         isEdit={true}
       />

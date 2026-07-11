@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { getCategoriesGrouped } from "@/data/products";
+import { getCustomerUser } from "@/lib/customerAuth";
+import { logout } from "@/app/dang-nhap/actions";
 import CartBadge from "@/components/CartBadge";
 import MegaMenu from "@/components/MegaMenu";
 import SearchBox from "@/components/SearchBox";
 
 export default async function Header() {
-  const groups = await getCategoriesGrouped();
+  const [groups, user] = await Promise.all([getCategoriesGrouped(), getCustomerUser()]);
 
   return (
     <>
@@ -36,9 +38,22 @@ export default async function Header() {
         <SearchBox />
 
         <div className="header-actions">
-          {/* Tạm ẩn "Tra cứu đơn hàng": bản cũ cho khớp SĐT theo kiểu "chứa" (ilike %...%),
-              không giới hạn số lần thử -> có thể bị dò để xem tên/SĐT/địa chỉ người khác.
-              Sẽ làm lại sau khi có đăng nhập khách hàng, để chỉ xem được đơn của chính mình. */}
+          {user ? (
+            <>
+              <Link href="/don-hang-cua-toi" className="header-action-btn">
+                Đơn hàng của tôi
+              </Link>
+              <form action={logout} style={{ display: "inline" }}>
+                <button type="submit" className="header-action-btn" style={{ border: "none", background: "none", cursor: "pointer" }}>
+                  Đăng xuất
+                </button>
+              </form>
+            </>
+          ) : (
+            <Link href="/dang-nhap" className="header-action-btn">
+              Đăng nhập
+            </Link>
+          )}
           <CartBadge className="header-action-btn header-action-btn--primary" />
         </div>
       </header>

@@ -7,10 +7,12 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 20;
 
-function buildPageHref({ q, category, page }) {
+function buildPageHref({ q, category, brand, variant, page }) {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   if (category && category !== "all") params.set("category", category);
+  if (brand && brand !== "all") params.set("brand", brand);
+  if (variant && variant !== "all") params.set("variant", variant);
   params.set("page", String(page));
   return `/admin/products?${params.toString()}`;
 }
@@ -18,24 +20,41 @@ function buildPageHref({ q, category, page }) {
 export default async function AdminProductsPage({ searchParams }) {
   const q = (searchParams?.q || "").trim();
   const categoryFilter = searchParams?.category || "all";
+  const brandFilter = searchParams?.brand || "all";
+  const variantFilter = searchParams?.variant || "all";
   const page = Math.max(1, Number(searchParams?.page) || 1);
 
-  const { data: categories } = await supabaseAdmin.from("categories").select("*").order("code");
+  const { data: categories } = await supabaseAdmin.from("categories").select("*").order("display_order");
 
   let query = supabaseAdmin.from("products").select("*", { count: "exact" });
 
   if (q) {
     const escaped = q.replace(/[%,]/g, "");
-    query = query.or(`name.ilike.%${escaped}%,code.ilike.%${escaped}%`);
+    query = query.or(`name.ilike.%${escaped}%,code.ilike.%${escaped}%,variants_text.ilike.%${escaped}%`);
   }
   if (categoryFilter !== "all") {
     query = query.eq("category", categoryFilter);
+  }
+  if (brandFilter !== "all") {
+    query = query.eq("brand", brandFilter);
+  }
+  if (variantFilter !== "all") {
+    query = query.contains("variants", [variantFilter]);
   }
 
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
   const { data: products, error, count } = await query.order("code").range(from, to);
+
+  // Danh sách Hãng/Đời máy để đổ vào 2 dropdown lọc — chỉ lấy 2 cột nhẹ (brand, variants),
+  // không lấy nguyên dòng sản phẩm. Dùng đúng 2 cột đã có sẵn và đang chạy ở bộ lọc trang tìm
+  // kiếm khách hàng (xem getFilteredProducts trong data/products.js) — không thêm dữ liệu mới.
+  const { data: facetRows } = await supabaseAdmin.from("products").select("brand, variants");
+  const brandOptions = Array.from(new Set((facetRows || []).map((p) => p.brand).filter(Boolean))).sort();
+  const variantOptions = Array.from(
+    new Set((facetRows || []).flatMap((p) => p.variants || []).filter(Boolean))
+  ).sort();
 
   if (error) {
     return (
@@ -47,7 +66,7 @@ export default async function AdminProductsPage({ searchParams }) {
 
   const totalCount = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const hasFilters = Boolean(q) || categoryFilter !== "all";
+  const hasFilters = Boolean(q) || categoryFilter !== "all" || brandFilter !== "all" || variantFilter !== "all";
 
   return (
     <main>
@@ -86,6 +105,22 @@ export default async function AdminProductsPage({ searchParams }) {
           {(categories || []).map((c) => (
             <option key={c.slug} value={c.slug}>
               {c.name}
+            </option>
+          ))}
+        </select>
+        <select name="brand" defaultValue={brandFilter} className="sort-select">
+          <option value="all">Tất cả hãng</option>
+          {brandOptions.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
+        </select>
+        <select name="variant" defaultValue={variantFilter} className="sort-select">
+          <option value="all">Tất cả đời máy</option>
+          {variantOptions.map((v) => (
+            <option key={v} value={v}>
+              {v}
             </option>
           ))}
         </select>
@@ -169,7 +204,13 @@ export default async function AdminProductsPage({ searchParams }) {
           {totalPages > 1 && (
             <div className="admin-pagination">
               <Link
-                href={buildPageHref({ q, category: categoryFilter, page: Math.max(1, page - 1) })}
+                href={buildPageHref({
+                  q,
+                  category: categoryFilter,
+                  brand: brandFilter,
+                  variant: variantFilter,
+                  page: Math.max(1, page - 1),
+                })}
                 className={`cart-remove ${page <= 1 ? "disabled-link" : ""}`}
                 style={{ textDecoration: "none" }}
               >
@@ -182,6 +223,8 @@ export default async function AdminProductsPage({ searchParams }) {
                 href={buildPageHref({
                   q,
                   category: categoryFilter,
+                  brand: brandFilter,
+                  variant: variantFilter,
                   page: Math.min(totalPages, page + 1),
                 })}
                 className={`cart-remove ${page >= totalPages ? "disabled-link" : ""}`}

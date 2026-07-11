@@ -106,8 +106,14 @@ export default async function OrderDetailPage({ params, searchParams }) {
           </tbody>
         </table>
 
-        <div style={{ textAlign: "right", marginTop: 12, fontSize: 15 }}>
-          <strong>Tổng thu (COD): {formatPrice(order.total_price)}</strong>
+        <div style={{ textAlign: "right", marginTop: 12 }}>
+          <div style={{ fontSize: 13 }}>Tạm tính: {formatPrice(order.total_price - (order.shipping_fee || 0))}</div>
+          <div style={{ fontSize: 13, marginBottom: 6 }}>
+            Phí vận chuyển: {order.shipping_fee > 0 ? formatPrice(order.shipping_fee) : "Miễn phí"}
+          </div>
+          <div style={{ fontSize: 15 }}>
+            <strong>Tổng thu (COD): {formatPrice(order.total_price)}</strong>
+          </div>
         </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 56 }}>

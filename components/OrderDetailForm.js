@@ -82,8 +82,18 @@ export default function OrderDetailForm({ order }) {
         </div>
       )}
 
-      <div className="cart-total" style={{ marginTop: 12, marginBottom: 0 }}>
-        Tổng cộng: <strong>{formatPrice(total)}</strong>
+      <div style={{ marginTop: 12 }}>
+        <div className="checkout-line">
+          <span>Tạm tính</span>
+          <span>{formatPrice(total)}</span>
+        </div>
+        <div className="checkout-line">
+          <span>Phí vận chuyển</span>
+          <span>{order.shipping_fee > 0 ? formatPrice(order.shipping_fee) : "Miễn phí"}</span>
+        </div>
+        <div className="cart-total" style={{ marginTop: 4, marginBottom: 0 }}>
+          Tổng thu (COD): <strong>{formatPrice(total + (order.shipping_fee || 0))}</strong>
+        </div>
       </div>
 
       <button type="submit" className="btn-primary" style={{ marginTop: 16 }} disabled={items.length === 0}>

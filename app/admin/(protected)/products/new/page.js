@@ -5,7 +5,17 @@ import ProductForm from "@/components/ProductForm";
 export const dynamic = "force-dynamic";
 
 export default async function NewProductPage({ searchParams }) {
-  const { data: categories } = await supabaseAdmin.from("categories").select("*").order("code");
+  const [{ data: groups }, { data: categories }] = await Promise.all([
+    supabaseAdmin.from("category_groups").select("*").order("display_order"),
+    supabaseAdmin.from("categories").select("*").order("display_order"),
+  ]);
+
+  // Chỉ liệt kê danh mục đang thuộc 1 nhóm lớn (group_slug khớp) — xem giải thích trong ProductForm.js.
+  const categoryGroups = (groups || []).map((g) => ({
+    slug: g.slug,
+    name: g.name,
+    categories: (categories || []).filter((c) => c.group_slug === g.slug),
+  }));
 
   return (
     <main>
@@ -19,7 +29,7 @@ export default async function NewProductPage({ searchParams }) {
         </div>
       )}
 
-      <ProductForm action={createProduct} categories={categories || []} isEdit={false} />
+      <ProductForm action={createProduct} categoryGroups={categoryGroups} isEdit={false} />
     </main>
   );
 }

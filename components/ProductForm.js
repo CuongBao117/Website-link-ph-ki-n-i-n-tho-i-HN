@@ -1,10 +1,17 @@
 import ProductImageManager from "@/components/ProductImageManager";
 import SlugField from "@/components/SlugField";
 
-export default function ProductForm({ action, categories, defaultValues, isEdit }) {
+export default function ProductForm({ action, categoryGroups, defaultValues, isEdit }) {
   const v = defaultValues || {};
   const specsText = (v.specs || []).map(([label, value]) => `${label}|${value}`).join("\n");
   const variantsText = (v.variants || []).join(", ");
+
+  // Sản phẩm đang sửa có thể đang thuộc 1 danh mục đã bị gỡ khỏi menu (mồ côi) — danh mục đó
+  // không nằm trong categoryGroups nên sẽ không có option nào khớp. Phải tự thêm option cảnh
+  // báo, nếu không trình duyệt sẽ ngầm chọn đại option đầu tiên và admin lưu lại sẽ vô tình
+  // đổi category của sản phẩm mà không biết.
+  const allListedSlugs = categoryGroups.flatMap((g) => g.categories.map((c) => c.slug));
+  const currentCategoryIsOrphan = Boolean(v.category) && !allListedSlugs.includes(v.category);
 
   return (
     <form action={action} className="checkout-form" style={{ maxWidth: 640 }}>
@@ -26,7 +33,7 @@ export default function ProductForm({ action, categories, defaultValues, isEdit 
       <label>Danh mục</label>
       <select
         name="category"
-        defaultValue={v.category || (categories[0] && categories[0].slug)}
+        defaultValue={v.category || categoryGroups[0]?.categories[0]?.slug}
         required
         style={{
           border: "1.5px solid var(--line)",
@@ -35,12 +42,28 @@ export default function ProductForm({ action, categories, defaultValues, isEdit 
           fontSize: 14,
         }}
       >
-        {categories.map((c) => (
-          <option key={c.slug} value={c.slug}>
-            {c.name}
-          </option>
+        {/* Chỉ liệt kê danh mục đang thuộc 1 nhóm lớn (còn hiện trên site) — danh mục đã bị
+            gỡ khỏi menu (xem /admin/categories) không xuất hiện ở đây, tránh lỡ gán sản phẩm
+            vào 1 danh mục mà khách không tài nào thấy được trên trang chủ/mega menu. */}
+        {currentCategoryIsOrphan && (
+          <option value={v.category}>⚠ {v.category} (đã gỡ khỏi menu — chọn danh mục khác bên dưới)</option>
+        )}
+        {categoryGroups.map((g) => (
+          <optgroup key={g.slug} label={g.name}>
+            {g.categories.map((c) => (
+              <option key={c.slug} value={c.slug}>
+                {c.name}
+              </option>
+            ))}
+          </optgroup>
         ))}
       </select>
+      {currentCategoryIsOrphan && (
+        <div style={{ fontSize: 12, color: "#B0503A", marginTop: 4 }}>
+          Sản phẩm này đang ở danh mục "{v.category}" — danh mục đó đã bị gỡ khỏi menu nên khách sẽ không
+          thấy được qua trang chủ/mega menu. Nên chọn lại 1 danh mục đang hoạt động ở trên.
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 14 }}>
         <div style={{ flex: 1 }}>

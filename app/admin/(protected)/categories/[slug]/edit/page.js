@@ -6,11 +6,10 @@ import CategoryForm from "@/components/CategoryForm";
 export const dynamic = "force-dynamic";
 
 export default async function EditCategoryPage({ params, searchParams }) {
-  const { data: category } = await supabaseAdmin
-    .from("categories")
-    .select("*")
-    .eq("slug", params.slug)
-    .maybeSingle();
+  const [{ data: category }, { data: groups }] = await Promise.all([
+    supabaseAdmin.from("categories").select("*").eq("slug", params.slug).maybeSingle(),
+    supabaseAdmin.from("category_groups").select("*").order("display_order"),
+  ]);
 
   if (!category) return notFound();
 
@@ -28,7 +27,7 @@ export default async function EditCategoryPage({ params, searchParams }) {
         </div>
       )}
 
-      <CategoryForm action={boundUpdateCategory} defaultValues={category} isEdit={true} />
+      <CategoryForm action={boundUpdateCategory} defaultValues={category} groups={groups || []} isEdit={true} />
     </main>
   );
 }

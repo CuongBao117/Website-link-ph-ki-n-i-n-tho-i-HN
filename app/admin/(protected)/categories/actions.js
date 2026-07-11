@@ -3,6 +3,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { slugify } from "@/lib/slugify";
 import { isAdminAuthed, requireAdmin } from "@/lib/adminAuth";
 
 export async function createCategory(formData) {
@@ -10,20 +11,30 @@ export async function createCategory(formData) {
     redirect("/admin/login");
   }
 
-  const slug = formData.get("slug")?.trim();
+  const rawSlug = formData.get("slug")?.trim();
+  const slug = slugify(rawSlug);
   const code = formData.get("code")?.trim();
   const name = formData.get("name")?.trim();
-  const groupSlug = formData.get("groupSlug")?.trim() || "linh-kien";
+  const groupSlug = formData.get("groupSlug")?.trim() || null;
+  const displayOrder = Number(formData.get("displayOrder")) || 0;
 
   if (!slug || !code || !name) {
-    redirect(`/admin/categories/new?error=${encodeURIComponent("Vui lòng điền đủ thông tin.")}`);
+    redirect(
+      `/admin/categories/new?error=${encodeURIComponent(
+        "Vui lòng điền đủ thông tin — tên danh mục phải có ít nhất 1 chữ hoặc số để tạo được slug."
+      )}`
+    );
   }
 
-  const { error } = await supabaseAdmin.from("categories").insert({ slug, code, name, group_slug: groupSlug });
+  const { error } = await supabaseAdmin
+    .from("categories")
+    .insert({ slug, code, name, group_slug: groupSlug, display_order: displayOrder });
 
   if (error) {
     console.error("Lỗi thêm danh mục:", error.message);
-    redirect(`/admin/categories/new?error=${encodeURIComponent(error.message)}`);
+    const message =
+      error.code === "23505" ? `Mã danh mục "${slug}" đã tồn tại — hãy đổi tên hoặc tự đặt slug khác.` : error.message;
+    redirect(`/admin/categories/new?error=${encodeURIComponent(message)}`);
   }
 
   revalidatePath("/admin/categories");
@@ -38,11 +49,12 @@ export async function updateCategory(slug, formData) {
 
   const code = formData.get("code")?.trim();
   const name = formData.get("name")?.trim();
-  const groupSlug = formData.get("groupSlug")?.trim() || "linh-kien";
+  const groupSlug = formData.get("groupSlug")?.trim() || null;
+  const displayOrder = Number(formData.get("displayOrder")) || 0;
 
   const { error } = await supabaseAdmin
     .from("categories")
-    .update({ code, name, group_slug: groupSlug })
+    .update({ code, name, group_slug: groupSlug, display_order: displayOrder })
     .eq("slug", slug);
 
   if (error) {

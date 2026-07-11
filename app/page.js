@@ -8,7 +8,13 @@ export const dynamic = "force-dynamic";
 const PREVIEW_COUNT = 8;
 
 export default async function HomePage() {
-  const categories = await getCategories();
+  const allCategories = await getCategories();
+
+  // Chỉ hiện những danh mục CÒN thuộc 1 trong 4 nhóm chính thức (group_slug khác null).
+  // Các danh mục "cũ" như "Cáp & Sạc (cũ — chuyển sản phẩm sang...)" đã bị gỡ khỏi group_slug
+  // ở migration_007/008 (xem file .sql) — đúng ra không nên hiện nữa, nhưng trang chủ trước
+  // đây lấy TOÀN BỘ danh mục không lọc, nên tên ghi chú nội bộ đó lại lộ ra ngoài trang chủ.
+  const categories = allCategories.filter((c) => c.group_slug);
 
   const sections = await Promise.all(
     categories.map(async (c) => {

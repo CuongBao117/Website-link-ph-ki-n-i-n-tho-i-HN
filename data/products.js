@@ -4,14 +4,17 @@
 import { supabase } from "@/lib/supabase";
 import { COMMON_BRANDS } from "@/lib/brands";
 
-// 4 nhóm danh mục lớn cố định — khớp với group_slug lưu trong bảng categories
-// (xem supabase/migration_005_category_groups.sql và migration_007_menu_restructure.sql)
-export const CATEGORY_GROUPS = [
-  { slug: "linh-kien", name: "Linh kiện" },
-  { slug: "phu-kien", name: "Phụ kiện" },
-  { slug: "do-nghe", name: "Đồ nghề sửa chữa" },
-  { slug: "do-choi-cong-nghe", name: "Đồ chơi công nghệ" },
-];
+// 4 nhóm danh mục lớn — đọc từ bảng "category_groups" (xem migration_011), KHÔNG hardcode
+// trong code nữa. Trước đây danh sách này bị lặp lại ở 3 nơi (data/products.js, MegaMenu.js,
+// CategoryForm.js) — sửa 1 nơi phải nhớ sửa cả 3, dễ lệch. Giờ chỉ còn duy nhất bảng này.
+export async function getCategoryGroups() {
+  const { data, error } = await supabase.from("category_groups").select("*").order("display_order");
+  if (error) {
+    console.error("Lỗi tải nhóm danh mục:", error.message);
+    return [];
+  }
+  return data;
+}
 
 function mapProductRow(row) {
   if (!row) return null;
@@ -40,7 +43,7 @@ function mapProductRow(row) {
 }
 
 export async function getCategories() {
-  const { data, error } = await supabase.from("categories").select("*").order("code");
+  const { data, error } = await supabase.from("categories").select("*").order("display_order");
   if (error) {
     console.error("Lỗi tải danh mục:", error.message);
     return [];
@@ -48,18 +51,16 @@ export async function getCategories() {
   return data;
 }
 
-// Trả về danh mục đã gom theo nhóm lớn: { "linh-kien": [...], "phu-kien": [...], "do-nghe": [...] }
-// Danh mục nào chưa có group_slug (dữ liệu cũ chưa migrate) sẽ không xuất hiện ở mega menu.
+// Trả về danh mục đã gom theo nhóm lớn, dạng mảng: [{ slug, name, categories: [...] }, ...],
+// sắp theo đúng display_order của cả nhóm và danh mục con. Danh mục nào chưa có group_slug
+// (đã bị gỡ khỏi menu — xem /admin/categories) sẽ không xuất hiện ở đây.
 export async function getCategoriesGrouped() {
-  const categories = await getCategories();
-  const groups = {};
-  CATEGORY_GROUPS.forEach((g) => (groups[g.slug] = []));
-  categories.forEach((c) => {
-    if (c.group_slug && groups[c.group_slug]) {
-      groups[c.group_slug].push(c);
-    }
-  });
-  return groups;
+  const [groups, categories] = await Promise.all([getCategoryGroups(), getCategories()]);
+  return groups.map((g) => ({
+    slug: g.slug,
+    name: g.name,
+    categories: categories.filter((c) => c.group_slug === g.slug),
+  }));
 }
 
 export async function getCategoryBySlug(slug) {
@@ -146,9 +147,10 @@ export async function getFilteredProducts({
     if (keyword) {
       // Bỏ dấu % và dấu phẩy để không phá cú pháp bộ lọc ilike/or của PostgREST.
       const escaped = keyword.replace(/[%,]/g, "");
-      // "variants::text.ilike..." ép cột jsonb "variants" sang text để tìm theo dòng máy —
-      // PostgREST hỗ trợ ép kiểu (::) ngay trong điều kiện lọc.
-      query = query.or(`name.ilike.%${escaped}%,code.ilike.%${escaped}%,variants::text.ilike.%${escaped}%`);
+      // Lọc trên "variants_text" (cột tính sẵn, xem migration_012) — KHÔNG được ép kiểu
+      // "variants::text" ngay trong .or() vì PostgREST chặn cast trong điều kiện lọc (chỉ
+      // cho phép khi chọn cột hiển thị), làm cả câu truy vấn lỗi 400 → tìm gì cũng ra 0 kết quả.
+      query = query.or(`name.ilike.%${escaped}%,code.ilike.%${escaped}%,variants_text.ilike.%${escaped}%`);
     }
     return query;
   }

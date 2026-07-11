@@ -36,15 +36,17 @@ export default async function CategoryPage({ params, searchParams }) {
       </div>
 
       <div className="cat-pills">
-        {categories.map((c) => (
-          <Link
-            key={c.slug}
-            href={`/danh-muc/${c.slug}`}
-            className={`cat-pill ${c.slug === category.slug ? "active" : ""}`}
-          >
-            {c.name}
-          </Link>
-        ))}
+        {categories
+          .filter((c) => c.group_slug)
+          .map((c) => (
+            <Link
+              key={c.slug}
+              href={`/danh-muc/${c.slug}`}
+              className={`cat-pill ${c.slug === category.slug ? "active" : ""}`}
+            >
+              {c.name}
+            </Link>
+          ))}
       </div>
 
       <CategoryProductList products={products} totalCount={totalCount} facets={facets} page={page} />

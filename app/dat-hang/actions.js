@@ -1,12 +1,20 @@
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getCustomerUser } from "@/lib/customerAuth";
 
 // Đặt hàng — chạy hoàn toàn ở server, dùng service_role key.
 // Chỉ nhận slug + variant + qty từ client; GIÁ được tính lại trong database (xem hàm
 // place_order() ở supabase/migration_006_secure_checkout.sql), nên khách không thể tự sửa giá
 // qua localStorage/DevTools như cách làm cũ (insert thẳng từ client bằng anon key).
 export async function placeOrder({ items, customerName, phoneNumber, address, note }) {
+  // Trang /dat-hang đã chặn khách chưa đăng nhập, nhưng Server Action gọi thẳng được (bỏ qua
+  // trang) nên phải tự kiểm tra lại ở đây — không tin tưởng hoàn toàn vào lớp chặn phía trang.
+  const user = await getCustomerUser();
+  if (!user) {
+    return { success: false, error: "Cần đăng nhập để đặt hàng." };
+  }
+
   const cleanItems = (items || [])
     .filter((i) => i && i.slug && i.qty > 0)
     .map((i) => ({ slug: i.slug, variant: i.variant || null, qty: Math.max(1, Number(i.qty) || 1) }));
@@ -21,6 +29,7 @@ export async function placeOrder({ items, customerName, phoneNumber, address, no
     p_phone_number: phoneNumber,
     p_address: address,
     p_note: note || null,
+    p_user_id: user.id,
   });
 
   if (error) {

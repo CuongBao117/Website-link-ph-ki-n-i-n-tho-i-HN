@@ -1,9 +1,12 @@
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { createCategory } from "@/app/admin/(protected)/categories/actions";
 import CategoryForm from "@/components/CategoryForm";
 
 export const dynamic = "force-dynamic";
 
-export default function NewCategoryPage({ searchParams }) {
+export default async function NewCategoryPage({ searchParams }) {
+  const { data: groups } = await supabaseAdmin.from("category_groups").select("*").order("display_order");
+
   return (
     <main>
       <div className="section-head">
@@ -16,7 +19,7 @@ export default function NewCategoryPage({ searchParams }) {
         </div>
       )}
 
-      <CategoryForm action={createCategory} isEdit={false} />
+      <CategoryForm action={createCategory} groups={groups || []} isEdit={false} />
     </main>
   );
 }

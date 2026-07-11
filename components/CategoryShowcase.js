@@ -1,20 +1,26 @@
 import Link from "next/link";
+import { getCategoryGroups } from "@/data/products";
 
-const GROUPS = [
-  { icon: "⚙️", name: "Linh kiện" },
-  { icon: "🎧", name: "Phụ kiện" },
-  { icon: "🔧", name: "Đồ nghề sửa chữa" },
-  { icon: "🎮", name: "Đồ chơi công nghệ" },
-];
+// Icon chỉ để trang trí — map theo slug nhóm (bảng "category_groups" trong DB, xem
+// migration_011). Nhóm nào chưa có icon riêng (mới tạo thêm ở /admin) dùng icon mặc định.
+const GROUP_ICONS = {
+  "linh-kien": "⚙️",
+  "phu-kien": "🎧",
+  "do-nghe": "🔧",
+  "do-choi-cong-nghe": "🎮",
+};
+const DEFAULT_ICON = "🔲";
 
-export default function CategoryShowcase() {
+export default async function CategoryShowcase() {
+  const groups = await getCategoryGroups();
+
   return (
     <div className="hero-cat-card">
       <div className="hero-cat-head">☰ Danh mục sản phẩm</div>
       <div className="hero-cat-list">
-        {GROUPS.map((g) => (
-          <Link key={g.name} href="#danh-muc" className="hero-cat-item">
-            <span className="hero-cat-icon">{g.icon}</span>
+        {groups.map((g) => (
+          <Link key={g.slug} href="#danh-muc" className="hero-cat-item">
+            <span className="hero-cat-icon">{GROUP_ICONS[g.slug] || DEFAULT_ICON}</span>
             <span>{g.name}</span>
           </Link>
         ))}

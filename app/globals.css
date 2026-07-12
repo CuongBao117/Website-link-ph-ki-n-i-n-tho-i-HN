@@ -1309,6 +1309,28 @@ nav.catnav.mega-nav {
 .gan-anh-match select:focus {
   border-color: var(--teal);
 }
+.gan-anh-quick-repeat {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--teal-soft);
+  border: 1.5px dashed var(--teal);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--teal);
+  cursor: pointer;
+  margin-bottom: 16px;
+  font-family: inherit;
+}
+.gan-anh-quick-repeat:hover {
+  background: #dcebfd;
+}
+.gan-anh-quick-repeat:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .gan-anh-hint {
   font-size: 12.5px;
   color: var(--ink-soft);

@@ -21,6 +21,7 @@ export default function GanAnhBatch({ categoryGroups }) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [log, setLog] = useState([]); // [{ fileName, status, label }]
+  const [lastProduct, setLastProduct] = useState(null); // { slug, name } — để gắn nhanh ảnh tiếp theo cùng sản phẩm
   const fileInputRef = useRef(null);
 
   const current = queue[index] || null;
@@ -50,6 +51,7 @@ export default function GanAnhBatch({ categoryGroups }) {
     setQuery("");
     setResults([]);
     setShowCreateForm(false);
+    setLastProduct(null);
   }
 
   function goNext(entry) {
@@ -69,6 +71,7 @@ export default function GanAnhBatch({ categoryGroups }) {
     const res = await attachImageToProduct(formData);
     setIsBusy(false);
     if (res.success) {
+      setLastProduct({ slug: product.slug, name: product.name });
       goNext({ fileName: current.file.name, status: "attached", label: product.name });
     } else {
       alert(`Lỗi: ${res.error}`);
@@ -90,6 +93,7 @@ export default function GanAnhBatch({ categoryGroups }) {
     const res = await createProductWithImage(formData);
     setIsBusy(false);
     if (res.success) {
+      setLastProduct({ slug: res.slug, name: formData.get("name") });
       goNext({ fileName: current.file.name, status: "created", label: formData.get("name") });
     } else {
       alert(`Lỗi: ${res.error}`);
@@ -135,6 +139,17 @@ export default function GanAnhBatch({ categoryGroups }) {
           </div>
 
           <div className="gan-anh-match">
+            {lastProduct && (
+              <button
+                type="button"
+                className="gan-anh-quick-repeat"
+                disabled={isBusy}
+                onClick={() => handleAttach(lastProduct)}
+              >
+                📌 Ảnh này cũng của "{lastProduct.name}" — gắn luôn (thêm góc chụp khác)
+              </button>
+            )}
+
             <label>Gõ tên sản phẩm (đọc từ caption bên Zalo)</label>
             <input
               type="text"

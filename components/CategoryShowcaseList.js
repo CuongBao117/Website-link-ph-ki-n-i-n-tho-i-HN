@@ -19,7 +19,6 @@ export default function CategoryShowcaseList({ items }) {
               className="hero-cat-item"
               onClick={() => setOpenSlug((prev) => (prev === item.slug ? null : item.slug))}
             >
-              <span className="hero-cat-icon">{item.icon}</span>
               <span>{item.name}</span>
               {item.categories.length > 0 && <span className="hero-cat-caret">▾</span>}
             </button>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getCategoryBySlug, getCategories, getFilteredProducts } from "@/data/products";
 import CategoryProductList from "@/components/CategoryProductList";
 
@@ -11,7 +11,7 @@ export default async function CategoryPage({ params, searchParams }) {
 
   const page = Math.max(1, Number(searchParams?.page) || 1);
 
-  const [{ products, totalCount, facets, error }, categories] = await Promise.all([
+  const [{ products, totalCount, totalPages, facets, suggestions, error }, categories] = await Promise.all([
     getFilteredProducts({
       category: category.slug,
       brand: searchParams?.brand,
@@ -23,6 +23,13 @@ export default async function CategoryPage({ params, searchParams }) {
     }),
     getCategories(),
   ]);
+
+  // Số trang vượt quá thực tế -> tự chuyển về trang cuối hợp lệ (xem giải thích trong data/products.js).
+  if (!error && page > totalPages) {
+    const params2 = new URLSearchParams(searchParams);
+    params2.set("page", String(totalPages));
+    redirect(`/danh-muc/${category.slug}?${params2.toString()}`);
+  }
 
   return (
     <main>
@@ -54,7 +61,13 @@ export default async function CategoryPage({ params, searchParams }) {
           {error}
         </div>
       ) : (
-        <CategoryProductList products={products} totalCount={totalCount} facets={facets} page={page} />
+        <CategoryProductList
+          products={products}
+          totalCount={totalCount}
+          facets={facets}
+          page={page}
+          suggestions={suggestions}
+        />
       )}
     </main>
   );

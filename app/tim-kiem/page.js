@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getFilteredProducts } from "@/data/products";
 import CategoryProductList from "@/components/CategoryProductList";
 
@@ -8,7 +9,7 @@ export default async function SearchPage({ searchParams }) {
   const q = (searchParams?.q || "").trim();
   const page = Math.max(1, Number(searchParams?.page) || 1);
 
-  const { products, totalCount, facets, error } = q
+  const { products, totalCount, totalPages, facets, suggestions, error } = q
     ? await getFilteredProducts({
         q,
         brand: searchParams?.brand,
@@ -18,7 +19,15 @@ export default async function SearchPage({ searchParams }) {
         sort: searchParams?.sort,
         page,
       })
-    : { products: [], totalCount: 0, facets: { brands: [], variants: [] } };
+    : { products: [], totalCount: 0, totalPages: 1, facets: { brands: [], variants: [] }, suggestions: [] };
+
+  // Số trang vượt quá thực tế (gõ tay ?page=999...) -> tự chuyển về trang cuối hợp lệ, tránh
+  // hiện "không tìm thấy sản phẩm" gây hiểu lầm là hết hàng dù thực ra chỉ lệch trang.
+  if (q && !error && page > totalPages) {
+    const params = new URLSearchParams(searchParams);
+    params.set("page", String(totalPages));
+    redirect(`/tim-kiem?${params.toString()}`);
+  }
 
   return (
     <main>
@@ -40,7 +49,13 @@ export default async function SearchPage({ searchParams }) {
           {error}
         </div>
       ) : (
-        <CategoryProductList products={products} totalCount={totalCount} facets={facets} page={page} />
+        <CategoryProductList
+          products={products}
+          totalCount={totalCount}
+          facets={facets}
+          page={page}
+          suggestions={suggestions}
+        />
       )}
     </main>
   );

@@ -8,7 +8,7 @@ export default async function SearchPage({ searchParams }) {
   const q = (searchParams?.q || "").trim();
   const page = Math.max(1, Number(searchParams?.page) || 1);
 
-  const { products, totalCount, facets } = q
+  const { products, totalCount, facets, error } = q
     ? await getFilteredProducts({
         q,
         brand: searchParams?.brand,
@@ -34,6 +34,10 @@ export default async function SearchPage({ searchParams }) {
       {!q ? (
         <div className="empty-state">
           Gõ tên sản phẩm hoặc tên máy (ví dụ "iPhone 13", "pin Samsung"...) vào ô tìm kiếm ở đầu trang.
+        </div>
+      ) : error ? (
+        <div className="empty-state" style={{ color: "#B0503A" }}>
+          {error}
         </div>
       ) : (
         <CategoryProductList products={products} totalCount={totalCount} facets={facets} page={page} />

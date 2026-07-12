@@ -11,7 +11,7 @@ export default async function CategoryPage({ params, searchParams }) {
 
   const page = Math.max(1, Number(searchParams?.page) || 1);
 
-  const [{ products, totalCount, facets }, categories] = await Promise.all([
+  const [{ products, totalCount, facets, error }, categories] = await Promise.all([
     getFilteredProducts({
       category: category.slug,
       brand: searchParams?.brand,
@@ -49,7 +49,13 @@ export default async function CategoryPage({ params, searchParams }) {
           ))}
       </div>
 
-      <CategoryProductList products={products} totalCount={totalCount} facets={facets} page={page} />
+      {error ? (
+        <div className="empty-state" style={{ color: "#B0503A" }}>
+          {error}
+        </div>
+      ) : (
+        <CategoryProductList products={products} totalCount={totalCount} facets={facets} page={page} />
+      )}
     </main>
   );
 }

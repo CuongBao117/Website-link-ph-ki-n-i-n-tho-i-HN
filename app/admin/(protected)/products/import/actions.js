@@ -53,7 +53,10 @@ function pick(row, keys) {
   return "";
 }
 
-export async function importProductsFromCsv(formData) {
+// Bước 1: chỉ ĐỌC và KIỂM TRA file CSV, KHÔNG ghi gì vào database — trả về danh sách đã phân
+// tích để admin xem lại (tên/giá/danh mục/ảnh) trước khi thực sự lưu, tránh nhập nhầm hàng loạt
+// mà không hay (vd giá sai đơn vị, ảnh sai link...).
+export async function parseProductsCsv(formData) {
   const authError = requireAdmin();
   if (authError) return authError;
 
@@ -181,13 +184,32 @@ export async function importProductsFromCsv(formData) {
   validRows.forEach((r) => bySlug.set(r.slug, r));
   const dedupedRows = Array.from(bySlug.values());
 
+  return {
+    success: true,
+    rows: dedupedRows,
+    totalRows: rows.length,
+    skippedCount: rowErrors.length,
+    rowErrors: rowErrors.slice(0, 80),
+  };
+}
+
+// Bước 2: admin đã xem lại danh sách ở bước 1 (sửa được vài dòng nếu cần) và bấm xác nhận —
+// giờ mới thực sự ghi vào database.
+export async function commitProductsCsv(rows) {
+  const authError = requireAdmin();
+  if (authError) return authError;
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { success: false, error: "Không có dữ liệu để lưu." };
+  }
+
   let insertedCount = 0;
   const batchErrors = [];
 
   // upsert (không phải insert thường): nếu slug đã tồn tại thì CẬP NHẬT thay vì báo lỗi trùng —
   // nhờ vậy có thể chạy nhập lại nhiều lần (bổ sung/sửa dần dữ liệu) mà không sợ lỗi.
-  for (let i = 0; i < dedupedRows.length; i += BATCH_SIZE) {
-    const batch = dedupedRows.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    const batch = rows.slice(i, i + BATCH_SIZE);
     const { error } = await supabaseAdmin.from("products").upsert(batch, { onConflict: "slug" });
 
     if (error) {
@@ -203,9 +225,6 @@ export async function importProductsFromCsv(formData) {
   return {
     success: batchErrors.length === 0,
     insertedCount,
-    totalRows: rows.length,
-    skippedCount: rowErrors.length,
-    rowErrors: rowErrors.slice(0, 80),
     batchErrors,
   };
 }

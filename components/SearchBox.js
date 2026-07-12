@@ -21,6 +21,7 @@ export default function SearchBox() {
         placeholder="Tìm màn hình, pin, cáp sạc, loa Bluetooth, tên máy..."
         value={value}
         onChange={(e) => setValue(e.target.value)}
+        maxLength={100}
       />
       <button type="submit">TÌM →</button>
     </form>

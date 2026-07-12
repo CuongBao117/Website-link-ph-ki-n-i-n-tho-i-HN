@@ -23,6 +23,7 @@ export default function GanAnhBatch({ categoryGroups }) {
   const [log, setLog] = useState([]); // [{ fileName, status, label }]
   const [lastProduct, setLastProduct] = useState(null); // { slug, name } — để gắn nhanh ảnh tiếp theo cùng sản phẩm
   const [selected, setSelected] = useState(null); // { slug, name, price } — sản phẩm đang chờ xác nhận gắn ảnh (có thể sửa giá)
+  const [pendingCreate, setPendingCreate] = useState(null); // { name, price, category, categoryCode, categoryName } — chờ xác nhận trước khi tạo mới
   const fileInputRef = useRef(null);
 
   const current = queue[index] || null;
@@ -62,6 +63,7 @@ export default function GanAnhBatch({ categoryGroups }) {
     setResults([]);
     setShowCreateForm(false);
     setSelected(null);
+    setPendingCreate(null);
   }
 
   async function handleAttach(product, priceOverride) {
@@ -83,23 +85,35 @@ export default function GanAnhBatch({ categoryGroups }) {
     }
   }
 
-  async function handleCreate(e) {
+  function handleReviewCreate(e) {
     e.preventDefault();
-    if (!current || isBusy) return;
     const form = e.currentTarget;
-    const formData = new FormData(form);
-    formData.set("image", current.file);
     const categorySelect = form.elements.category;
-    const categoryCode =
-      categorySelect.selectedOptions?.[0]?.dataset?.code || "SP";
-    formData.set("categoryCode", categoryCode);
+    const selectedOption = categorySelect.selectedOptions?.[0];
+    setPendingCreate({
+      name: form.elements.name.value,
+      price: form.elements.price.value,
+      category: categorySelect.value,
+      categoryCode: selectedOption?.dataset?.code || "SP",
+      categoryName: selectedOption?.textContent || categorySelect.value,
+    });
+  }
+
+  async function handleConfirmCreate() {
+    if (!current || isBusy || !pendingCreate) return;
+    const formData = new FormData();
+    formData.set("name", pendingCreate.name);
+    formData.set("price", pendingCreate.price);
+    formData.set("category", pendingCreate.category);
+    formData.set("categoryCode", pendingCreate.categoryCode);
+    formData.set("image", current.file);
 
     setIsBusy(true);
     const res = await createProductWithImage(formData);
     setIsBusy(false);
     if (res.success) {
-      setLastProduct({ slug: res.slug, name: formData.get("name") });
-      goNext({ fileName: current.file.name, status: "created", label: formData.get("name") });
+      setLastProduct({ slug: res.slug, name: pendingCreate.name });
+      goNext({ fileName: current.file.name, status: "created", label: pendingCreate.name });
     } else {
       alert(`Lỗi: ${res.error}`);
     }
@@ -226,7 +240,7 @@ export default function GanAnhBatch({ categoryGroups }) {
               </>
             )}
 
-            {!selected && (
+            {!selected && !pendingCreate && (
               <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
                 <button
                   type="button"
@@ -241,8 +255,8 @@ export default function GanAnhBatch({ categoryGroups }) {
               </div>
             )}
 
-            {!selected && showCreateForm && (
-              <form onSubmit={handleCreate} className="gan-anh-create-form">
+            {!selected && showCreateForm && !pendingCreate && (
+              <form onSubmit={handleReviewCreate} className="gan-anh-create-form">
                 <label>Tên sản phẩm</label>
                 <input name="name" defaultValue={query} required placeholder="Pin DLC iPhone 13" />
 
@@ -262,10 +276,36 @@ export default function GanAnhBatch({ categoryGroups }) {
                   ))}
                 </select>
 
-                <button type="submit" className="btn-primary" style={{ marginTop: 12 }} disabled={isBusy}>
-                  {isBusy ? "Đang tạo..." : "Tạo & gắn ảnh"}
+                <button type="submit" className="btn-primary" style={{ marginTop: 12 }}>
+                  Xem lại trước khi tạo
                 </button>
               </form>
+            )}
+
+            {pendingCreate && (
+              <div className="gan-anh-confirm">
+                <div className="gan-anh-confirm-name">Xác nhận tạo sản phẩm mới:</div>
+                <p style={{ fontSize: 14, margin: "0 0 6px", fontWeight: 600 }}>{pendingCreate.name}</p>
+                <p style={{ fontSize: 13.5, color: "var(--ink-soft)", margin: "0 0 14px" }}>
+                  {formatPrice(pendingCreate.price)} · {pendingCreate.categoryName}
+                </p>
+                <p style={{ fontSize: 12.5, color: "var(--ink-soft)", margin: "0 0 14px" }}>
+                  Ảnh đính kèm: ảnh đang xem bên trái ({current.file.name})
+                </p>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    disabled={isBusy}
+                    onClick={handleConfirmCreate}
+                  >
+                    {isBusy ? "Đang tạo..." : "Xác nhận tạo & gắn ảnh"}
+                  </button>
+                  <button type="button" className="cart-remove" onClick={() => setPendingCreate(null)}>
+                    Quay lại sửa
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>

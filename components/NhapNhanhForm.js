@@ -62,11 +62,13 @@ export default function NhapNhanhForm({ categoryGroups }) {
   const [sharedImages, setSharedImages] = useState([]); // [{ file, previewUrl }]
   const [isBusy, setIsBusy] = useState(false);
   const [result, setResult] = useState(null);
+  const [showFinalConfirm, setShowFinalConfirm] = useState(false);
 
   function handleParse() {
     const { items: parsed } = parseBlock(text);
     setItems(parsed);
     setResult(null);
+    setShowFinalConfirm(false);
   }
 
   function updateItem(i, field, value) {
@@ -110,6 +112,7 @@ export default function NhapNhanhForm({ categoryGroups }) {
     const res = await createProductBatch(formData);
     setIsBusy(false);
     setResult(res);
+    setShowFinalConfirm(false);
     if (res.success) {
       setText("");
       setItems([]);
@@ -205,10 +208,10 @@ export default function NhapNhanhForm({ categoryGroups }) {
         )}
       </div>
 
-      {items.length > 0 && (
+      {items.length > 0 && !showFinalConfirm && (
         <div style={{ marginTop: 24 }}>
           <p style={{ fontWeight: 600, fontSize: 13.5, marginBottom: 10 }}>
-            Xem trước — {items.length} sản phẩm sẽ được tạo (sửa lại nếu cần trước khi tạo):
+            Bước 1 — Xem trước và sửa lại {items.length} sản phẩm sẽ được tạo:
           </p>
           <table className="cart-table">
             <thead>
@@ -246,9 +249,64 @@ export default function NhapNhanhForm({ categoryGroups }) {
             </tbody>
           </table>
 
-          <button type="button" className="btn-primary" onClick={handleSubmit} disabled={isBusy}>
-            {isBusy ? "Đang tạo..." : `Tạo ${items.length} sản phẩm`}
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => setShowFinalConfirm(true)}
+            disabled={items.length === 0}
+          >
+            Xem lại lần cuối →
           </button>
+        </div>
+      )}
+
+      {showFinalConfirm && (
+        <div className="gan-anh-confirm" style={{ marginTop: 24 }}>
+          <div className="gan-anh-confirm-name">
+            Bước 2 — Xác nhận tạo {items.length} sản phẩm
+          </div>
+          <p style={{ fontSize: 13.5, margin: "0 0 4px" }}>
+            Danh mục: <b>{categoryGroups.flatMap((g) => g.categories).find((c) => c.slug === category)?.name || category}</b>
+          </p>
+          <p style={{ fontSize: 13.5, margin: "0 0 12px" }}>
+            Giá thấp nhất — cao nhất:{" "}
+            <b>
+              {formatPrice(Math.min(...items.map((it) => Number(it.price) || 0)))} –{" "}
+              {formatPrice(Math.max(...items.map((it) => Number(it.price) || 0)))}
+            </b>
+          </p>
+
+          {sharedImages.length > 0 ? (
+            <>
+              <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "0 0 6px" }}>
+                Ảnh đại diện dùng chung cho cả {items.length} sản phẩm:
+              </p>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+                {sharedImages.map((img, i) => (
+                  <img
+                    key={i}
+                    src={img.previewUrl}
+                    alt=""
+                    style={{ width: 60, height: 60, objectFit: "cover", borderRadius: "var(--radius)", border: "1px solid var(--line)" }}
+                  />
+                ))}
+              </div>
+            </>
+          ) : (
+            <p style={{ fontSize: 12.5, color: "#B0503A", marginBottom: 14 }}>
+              ⚠ Chưa chọn ảnh nào — {items.length} sản phẩm sẽ được tạo không có ảnh, bổ sung sau qua "Gán ảnh
+              hàng loạt".
+            </p>
+          )}
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <button type="button" className="btn-primary" onClick={handleSubmit} disabled={isBusy}>
+              {isBusy ? "Đang tạo..." : `Xác nhận tạo ${items.length} sản phẩm`}
+            </button>
+            <button type="button" className="cart-remove" onClick={() => setShowFinalConfirm(false)} disabled={isBusy}>
+              Quay lại sửa
+            </button>
+          </div>
         </div>
       )}
 

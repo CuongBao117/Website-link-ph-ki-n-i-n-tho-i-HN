@@ -48,19 +48,22 @@ async function uploadOneImage(file, slugForPath) {
 }
 
 // Gắn 1 ảnh vào 1 sản phẩm ĐÃ CÓ SẴN (thêm vào cuối mảng ảnh hiện có, không xoá ảnh cũ).
+// Nếu có kèm "price" hợp lệ (khác giá hiện tại) thì cập nhật luôn giá — tiện sửa giá sai
+// ngay trong lúc gắn ảnh, đọc thấy giá đúng trên caption Zalo, khỏi phải vào sửa riêng.
 export async function attachImageToProduct(formData) {
   const authError = requireAdmin();
   if (authError) return authError;
 
   const slug = formData.get("slug")?.trim();
   const file = formData.get("image");
+  const priceRaw = formData.get("price");
   if (!slug || !file || typeof file !== "object" || file.size === 0) {
     return { success: false, error: "Thiếu sản phẩm hoặc ảnh." };
   }
 
   const { data: product, error: fetchError } = await supabaseAdmin
     .from("products")
-    .select("images, image_url")
+    .select("images, image_url, price")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -80,9 +83,15 @@ export async function attachImageToProduct(formData) {
     : [];
   const newImages = [...currentImages, url];
 
+  const updatePayload = { images: newImages, image_url: newImages[0] };
+  const newPrice = Number(priceRaw);
+  if (priceRaw !== null && priceRaw !== "" && Number.isFinite(newPrice) && newPrice > 0) {
+    updatePayload.price = newPrice;
+  }
+
   const { error: updateError } = await supabaseAdmin
     .from("products")
-    .update({ images: newImages, image_url: newImages[0] })
+    .update(updatePayload)
     .eq("slug", slug);
 
   if (updateError) {

@@ -1401,6 +1401,38 @@ nav.catnav.mega-nav {
   display: flex;
   flex-direction: column;
 }
+.gan-anh-confirm {
+  border: 1.5px solid var(--teal);
+  background: var(--teal-soft);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+}
+.gan-anh-confirm-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+.gan-anh-confirm label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+.gan-anh-confirm input {
+  width: 100%;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  background: var(--panel);
+}
+.gan-anh-confirm input:focus {
+  border-color: var(--teal);
+}
 
 @media (max-width: 900px) {
   .gan-anh-workspace {

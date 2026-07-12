@@ -22,6 +22,7 @@ export default function GanAnhBatch({ categoryGroups }) {
   const [isBusy, setIsBusy] = useState(false);
   const [log, setLog] = useState([]); // [{ fileName, status, label }]
   const [lastProduct, setLastProduct] = useState(null); // { slug, name } — để gắn nhanh ảnh tiếp theo cùng sản phẩm
+  const [selected, setSelected] = useState(null); // { slug, name, price } — sản phẩm đang chờ xác nhận gắn ảnh (có thể sửa giá)
   const fileInputRef = useRef(null);
 
   const current = queue[index] || null;
@@ -60,14 +61,18 @@ export default function GanAnhBatch({ categoryGroups }) {
     setQuery("");
     setResults([]);
     setShowCreateForm(false);
+    setSelected(null);
   }
 
-  async function handleAttach(product) {
+  async function handleAttach(product, priceOverride) {
     if (!current || isBusy) return;
     setIsBusy(true);
     const formData = new FormData();
     formData.set("slug", product.slug);
     formData.set("image", current.file);
+    if (priceOverride !== undefined && priceOverride !== "") {
+      formData.set("price", priceOverride);
+    }
     const res = await attachImageToProduct(formData);
     setIsBusy(false);
     if (res.success) {
@@ -150,63 +155,93 @@ export default function GanAnhBatch({ categoryGroups }) {
               </button>
             )}
 
-            <label>Gõ tên sản phẩm (đọc từ caption bên Zalo)</label>
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Pin DLC iPhone 13..."
-              autoFocus
-            />
-
-            {isSearching && <div className="gan-anh-hint">Đang tìm...</div>}
-
-            {results.length > 0 && (
-              <div className="gan-anh-results">
-                {results.map((p) => (
+            {selected ? (
+              <div className="gan-anh-confirm">
+                <div className="gan-anh-confirm-name">Gắn ảnh vào: {selected.name}</div>
+                <label>Giá bán (đ) — sửa lại nếu giá cũ bị sai</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={selected.price}
+                  onChange={(e) => setSelected((s) => ({ ...s, price: e.target.value }))}
+                  autoFocus
+                />
+                <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
                   <button
-                    key={p.slug}
                     type="button"
-                    className="gan-anh-result-row"
+                    className="btn-primary"
                     disabled={isBusy}
-                    onClick={() => handleAttach(p)}
+                    onClick={() => handleAttach(selected, selected.price)}
                   >
-                    <div className="gan-anh-result-thumb">
-                      {p.images?.[0] || p.image_url ? (
-                        <img src={p.images?.[0] || p.image_url} alt="" />
-                      ) : (
-                        <span>Chưa có ảnh</span>
-                      )}
-                    </div>
-                    <div>
-                      <div className="gan-anh-result-name">{p.name}</div>
-                      <div className="gan-anh-result-meta">
-                        {p.code} · {formatPrice(p.price)}
-                      </div>
-                    </div>
+                    {isBusy ? "Đang gắn..." : "Xác nhận gắn ảnh"}
                   </button>
-                ))}
+                  <button type="button" className="cart-remove" onClick={() => setSelected(null)}>
+                    Huỷ, chọn lại
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <label>Gõ tên sản phẩm (đọc từ caption bên Zalo)</label>
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Pin DLC iPhone 13..."
+                  autoFocus
+                />
+
+                {isSearching && <div className="gan-anh-hint">Đang tìm...</div>}
+
+                {results.length > 0 && (
+                  <div className="gan-anh-results">
+                    {results.map((p) => (
+                      <button
+                        key={p.slug}
+                        type="button"
+                        className="gan-anh-result-row"
+                        onClick={() => setSelected({ slug: p.slug, name: p.name, price: String(p.price ?? "") })}
+                      >
+                        <div className="gan-anh-result-thumb">
+                          {p.images?.[0] || p.image_url ? (
+                            <img src={p.images?.[0] || p.image_url} alt="" />
+                          ) : (
+                            <span>Chưa có ảnh</span>
+                          )}
+                        </div>
+                        <div>
+                          <div className="gan-anh-result-name">{p.name}</div>
+                          <div className="gan-anh-result-meta">
+                            {p.code} · {formatPrice(p.price)}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {query.trim() && !isSearching && results.length === 0 && (
+                  <div className="gan-anh-hint">Không tìm thấy sản phẩm nào khớp "{query}".</div>
+                )}
+              </>
+            )}
+
+            {!selected && (
+              <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="cart-remove"
+                  onClick={() => setShowCreateForm((v) => !v)}
+                >
+                  {showCreateForm ? "Ẩn form tạo mới" : "Không thấy — tạo sản phẩm mới"}
+                </button>
+                <button type="button" className="cart-remove" onClick={handleSkip} disabled={isBusy}>
+                  Bỏ qua ảnh này →
+                </button>
               </div>
             )}
 
-            {query.trim() && !isSearching && results.length === 0 && (
-              <div className="gan-anh-hint">Không tìm thấy sản phẩm nào khớp "{query}".</div>
-            )}
-
-            <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                className="cart-remove"
-                onClick={() => setShowCreateForm((v) => !v)}
-              >
-                {showCreateForm ? "Ẩn form tạo mới" : "Không thấy — tạo sản phẩm mới"}
-              </button>
-              <button type="button" className="cart-remove" onClick={handleSkip} disabled={isBusy}>
-                Bỏ qua ảnh này →
-              </button>
-            </div>
-
-            {showCreateForm && (
+            {!selected && showCreateForm && (
               <form onSubmit={handleCreate} className="gan-anh-create-form">
                 <label>Tên sản phẩm</label>
                 <input name="name" defaultValue={query} required placeholder="Pin DLC iPhone 13" />

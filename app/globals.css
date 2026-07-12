@@ -1256,3 +1256,135 @@ nav.catnav.mega-nav {
     text-align: left;
   }
 }
+
+/* ===== Admin — gán ảnh hàng loạt ===== */
+.gan-anh-workspace {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: start;
+}
+.gan-anh-preview {
+  position: sticky;
+  top: 90px;
+}
+.gan-anh-preview img {
+  width: 100%;
+  max-height: 480px;
+  object-fit: contain;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+.gan-anh-counter {
+  margin-top: 10px;
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+.gan-anh-match label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  margin: 14px 0 6px;
+}
+.gan-anh-match label:first-child {
+  margin-top: 0;
+}
+.gan-anh-match input,
+.gan-anh-match select {
+  width: 100%;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  padding: 11px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+}
+.gan-anh-match input:focus,
+.gan-anh-match select:focus {
+  border-color: var(--teal);
+}
+.gan-anh-hint {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  margin-top: 8px;
+}
+.gan-anh-results {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.gan-anh-result-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: none;
+  border-bottom: 1px solid var(--bg);
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+.gan-anh-result-row:last-child {
+  border-bottom: none;
+}
+.gan-anh-result-row:hover {
+  background: var(--teal-soft);
+}
+.gan-anh-result-row:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.gan-anh-result-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 8px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+.gan-anh-result-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.gan-anh-result-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.gan-anh-result-meta {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+.gan-anh-create-form {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 900px) {
+  .gan-anh-workspace {
+    grid-template-columns: 1fr;
+  }
+  .gan-anh-preview {
+    position: static;
+  }
+}

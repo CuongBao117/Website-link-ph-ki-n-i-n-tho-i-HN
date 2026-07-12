@@ -5,9 +5,9 @@ import { revalidatePath } from "next/cache";
 import { slugify } from "@/lib/slugify";
 import { requireAdmin } from "@/lib/adminAuth";
 
-async function uploadSharedImage(file, keyHint) {
+async function uploadSharedImage(file, keyHint, i) {
   const ext = (file.name?.split(".").pop() || "jpg").toLowerCase();
-  const path = `${keyHint}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+  const path = `${keyHint}-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
 
   const { error } = await supabaseAdmin.storage
     .from("product-images")
@@ -23,8 +23,9 @@ async function uploadSharedImage(file, keyHint) {
 }
 
 // Tạo hàng loạt sản phẩm cùng 1 mặt hàng nhưng khác dòng máy/giá (vd "Cáp sạc WEIBI iPhone 11",
-// "Cáp sạc WEIBI iPhone 11 Pro"...) — mỗi dòng máy là 1 sản phẩm riêng, có thể dùng chung 1 ảnh
-// đại diện (vì thường cả lô chỉ có 1 tấm ảnh chụp bảng giá/hàng thật).
+// "Cáp sạc WEIBI iPhone 11 Pro"...) — mỗi dòng máy là 1 sản phẩm riêng, dùng chung 1 bộ ảnh đại
+// diện (thường cả lô chỉ chụp vài tấm chung — bảng giá, hàng thật... — không có ảnh riêng từng
+// dòng máy).
 export async function createProductBatch(formData) {
   const authError = requireAdmin();
   if (authError) return authError;
@@ -32,7 +33,7 @@ export async function createProductBatch(formData) {
   const category = formData.get("category")?.trim();
   const categoryCode = formData.get("categoryCode")?.trim() || "SP";
   const itemsRaw = formData.get("items");
-  const sharedImageFile = formData.get("sharedImage");
+  const sharedImageFiles = formData.getAll("sharedImages");
 
   if (!category || !itemsRaw) {
     return { success: false, error: "Thiếu danh mục hoặc danh sách sản phẩm." };
@@ -48,10 +49,10 @@ export async function createProductBatch(formData) {
     return { success: false, error: "Danh sách sản phẩm đang trống." };
   }
 
-  let sharedImageUrl = null;
-  if (sharedImageFile && typeof sharedImageFile === "object" && sharedImageFile.size > 0) {
-    sharedImageUrl = await uploadSharedImage(sharedImageFile, slugify(category));
-  }
+  const validImageFiles = sharedImageFiles.filter((f) => f && typeof f === "object" && f.size > 0);
+  const sharedImageUrls = (
+    await Promise.all(validImageFiles.map((file, i) => uploadSharedImage(file, slugify(category), i)))
+  ).filter(Boolean);
 
   const { data: existingSlugs } = await supabaseAdmin.from("products").select("slug");
   const takenSlugs = new Set((existingSlugs || []).map((r) => r.slug));
@@ -65,7 +66,7 @@ export async function createProductBatch(formData) {
     takenSlugs.add(slug);
 
     const code = `${categoryCode}-${Date.now().toString(36).toUpperCase()}${i}`;
-    const images = sharedImageUrl ? [sharedImageUrl] : [];
+    const images = sharedImageUrls;
 
     return {
       slug,

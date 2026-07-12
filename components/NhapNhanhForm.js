@@ -59,8 +59,7 @@ export default function NhapNhanhForm({ categoryGroups }) {
   const [text, setText] = useState("");
   const [items, setItems] = useState([]);
   const [category, setCategory] = useState(categoryGroups[0]?.categories[0]?.slug || "");
-  const [sharedImage, setSharedImage] = useState(null);
-  const [sharedImagePreview, setSharedImagePreview] = useState(null);
+  const [sharedImages, setSharedImages] = useState([]); // [{ file, previewUrl }]
   const [isBusy, setIsBusy] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -78,11 +77,18 @@ export default function NhapNhanhForm({ categoryGroups }) {
     setItems((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  function handleImageChange(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setSharedImage(file);
-    setSharedImagePreview(URL.createObjectURL(file));
+  function handleImagesChange(e) {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setSharedImages((prev) => [
+      ...prev,
+      ...files.map((file) => ({ file, previewUrl: URL.createObjectURL(file) })),
+    ]);
+    e.target.value = ""; // cho phép chọn thêm lần nữa (kể cả chọn trùng file trước đó)
+  }
+
+  function removeSharedImage(i) {
+    setSharedImages((prev) => prev.filter((_, idx) => idx !== i));
   }
 
   async function handleSubmit() {
@@ -98,7 +104,7 @@ export default function NhapNhanhForm({ categoryGroups }) {
       "items",
       JSON.stringify(items.map((it) => ({ name: it.name, price: Number(it.price) })))
     );
-    if (sharedImage) formData.set("sharedImage", sharedImage);
+    sharedImages.forEach((img) => formData.append("sharedImages", img.file));
 
     setIsBusy(true);
     const res = await createProductBatch(formData);
@@ -107,8 +113,7 @@ export default function NhapNhanhForm({ categoryGroups }) {
     if (res.success) {
       setText("");
       setItems([]);
-      setSharedImage(null);
-      setSharedImagePreview(null);
+      setSharedImages([]);
     }
   }
 
@@ -160,15 +165,43 @@ export default function NhapNhanhForm({ categoryGroups }) {
 
       <div style={{ marginTop: 16 }}>
         <label style={{ fontSize: 12, color: "var(--ink-soft)", display: "block", marginBottom: 6 }}>
-          Ảnh đại diện dùng chung cho cả lô (không bắt buộc — có thể để trống rồi gắn ảnh sau)
+          Ảnh đại diện dùng chung cho cả lô — chọn được nhiều ảnh (không bắt buộc, có thể để trống rồi
+          gắn ảnh sau bằng "Gán ảnh hàng loạt")
         </label>
-        <input type="file" accept="image/*" onChange={handleImageChange} />
-        {sharedImagePreview && (
-          <img
-            src={sharedImagePreview}
-            alt=""
-            style={{ width: 80, height: 80, objectFit: "cover", borderRadius: "var(--radius)", marginTop: 8, border: "1px solid var(--line)" }}
-          />
+        <input type="file" accept="image/*" multiple onChange={handleImagesChange} />
+        {sharedImages.length > 0 && (
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
+            {sharedImages.map((img, i) => (
+              <div key={i} style={{ position: "relative" }}>
+                <img
+                  src={img.previewUrl}
+                  alt=""
+                  style={{ width: 80, height: 80, objectFit: "cover", borderRadius: "var(--radius)", border: "1px solid var(--line)" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeSharedImage(i)}
+                  title="Xoá ảnh này"
+                  style={{
+                    position: "absolute",
+                    top: -8,
+                    right: -8,
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    border: "none",
+                    background: "var(--ink)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    lineHeight: 1,
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

@@ -104,6 +104,9 @@ export default async function AdminProductsPage({ searchParams }) {
         >
           Nhập nhanh nhiều dòng máy
         </Link>
+        <Link href="/admin/products/nhap-zalo" className="cart-remove" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
+          Nhập từ bài đăng Zalo
+        </Link>
       </div>
 
       <form method="GET" className="admin-filter-bar">

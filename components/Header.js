@@ -16,7 +16,7 @@ export default async function Header() {
           <span className="copper">CHUYÊN SỈ LINH PHỤ KIỆN ĐIỆN THOẠI</span>
         </div>
         <div>
-          Miễn phí giao hàng nội thành cho đơn hàng từ <span className="copper">2.000.000đ</span>
+          Miễn phí vận chuyển cho đơn hàng từ <span className="copper">2tr</span>
         </div>
         <div>
           Hotline: <span className="copper">0357 105 530</span> · 8:00 – 21:00 mỗi ngày

@@ -195,15 +195,53 @@ export async function getFilteredProducts({
       ? mainQuery.order("price", { ascending: true })
       : sort === "price-desc"
       ? mainQuery.order("price", { ascending: false })
+      : sort === "newest"
+      ? mainQuery.order("created_at", { ascending: false })
       : mainQuery.order("code", { ascending: true });
 
-  const from = (Math.max(1, page) - 1) * pageSize;
+  // Chặn số trang vượt quá thực tế — trước đây bấm/gõ ?page=999 sẽ ra "products" rỗng nhưng
+  // "totalCount" vẫn > 0, hiện dòng "không tìm thấy sản phẩm" gây hiểu lầm là hết hàng. Kẹp lại
+  // trong khoảng [1, totalPages] trước khi query — page component sẽ tự redirect nếu người dùng
+  // gõ số trang không hợp lệ (xem app/tim-kiem, app/danh-muc/[slug]).
+  const requestedPage = Math.max(1, Number(page) || 1);
+
+  const from = (requestedPage - 1) * pageSize;
   const to = from + pageSize - 1;
 
   const { data: rows, error, count } = await mainQuery.range(from, to);
   if (error) {
     console.error("Lỗi tải sản phẩm:", error.message);
-    return { products: [], totalCount: 0, facets: { brands: [], variants: [] } };
+    return { products: [], totalCount: 0, totalPages: 1, facets: { brands: [], variants: [] } };
+  }
+
+  const totalPages = Math.max(1, Math.ceil((count ?? 0) / pageSize));
+
+  // Có từ khoá tìm kiếm nhưng ra 0 kết quả -> thử lại 1 lần LỎNG HƠN: chỉ cần khớp MỘT trong
+  // các từ (OR giữa từ, thay vì AND như truy vấn chính) để gợi ý "có thể bạn đang tìm" — vd gõ
+  // "pin sam sung a51" (thiếu dấu cách/gõ hơi khác) không ra kết quả đúng thì vẫn gợi ý được các
+  // sản phẩm chứa ít nhất 1 từ khớp, đỡ hơn hẳn màn hình trắng "không tìm thấy".
+  let suggestions = [];
+  const trimmedKeyword = (q || "").trim();
+  if (trimmedKeyword && (count ?? 0) === 0) {
+    const words = normalizeSearchText(trimmedKeyword)
+      .split(/\s+/)
+      .map(escapeSearchTerm)
+      .filter(Boolean);
+    if (words.length > 0) {
+      const orParts = words.flatMap((w) => [
+        `name_unaccent.ilike.%${w}%`,
+        `code_unaccent.ilike.%${w}%`,
+        `variants_text_unaccent.ilike.%${w}%`,
+      ]);
+      let suggestQuery = supabase.from("products").select("*").or(orParts.join(","));
+      if (category) suggestQuery = suggestQuery.eq("category", category);
+      const { data: suggestRows, error: suggestError } = await suggestQuery.limit(8);
+      if (suggestError) {
+        console.error("Lỗi tải gợi ý tìm kiếm:", suggestError.message);
+      } else {
+        suggestions = (suggestRows || []).map(mapProductRow);
+      }
+    }
   }
 
   let facets = { brands: [], variants: [] };
@@ -229,7 +267,7 @@ export async function getFilteredProducts({
     }
   }
 
-  return { products: (rows || []).map(mapProductRow), totalCount: count ?? 0, facets };
+  return { products: (rows || []).map(mapProductRow), totalCount: count ?? 0, totalPages, facets, suggestions };
 }
 
 export function formatPrice(value) {

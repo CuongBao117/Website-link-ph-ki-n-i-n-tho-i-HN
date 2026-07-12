@@ -97,6 +97,13 @@ export default async function AdminProductsPage({ searchParams }) {
         >
           Gán ảnh hàng loạt
         </Link>
+        <Link
+          href="/admin/products/nhap-nhanh"
+          className="cart-remove"
+          style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+        >
+          Nhập nhanh nhiều dòng máy
+        </Link>
       </div>
 
       <form method="GET" className="admin-filter-bar">

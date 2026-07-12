@@ -1,17 +1,16 @@
 const items = [
-  { code: "🚚", label: "Ship COD toàn quốc" },
-  { code: "🛡️", label: "Bảo hành 1 đổi 1" },
-  { code: "✅", label: "Kiểm tra trước khi giao" },
-  { code: "↩️", label: "Đổi trả trong 7 ngày" },
+  "Ship COD toàn quốc",
+  "Bảo hành 1 đổi 1",
+  "Kiểm tra trước khi giao",
+  "Đổi trả trong 7 ngày",
 ];
 
 export default function TrustStrip() {
   return (
     <div className="trust-strip">
-      {items.map((item) => (
-        <div key={item.code}>
-          <span className="code">{item.code}</span>
-          <span className="label">{item.label}</span>
+      {items.map((label) => (
+        <div key={label}>
+          <span className="label">{label}</span>
         </div>
       ))}
     </div>

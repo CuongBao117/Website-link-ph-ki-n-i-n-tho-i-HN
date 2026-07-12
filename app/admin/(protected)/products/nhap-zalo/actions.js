@@ -12,6 +12,11 @@ import { requireAdmin } from "@/lib/adminAuth";
 // liệu bằng upsert(onConflict: "slug") — nếu 1 sản phẩm mới vô tình trùng slug với sản phẩm cũ
 // (trùng tên -> cùng 1 slug), nó sẽ ÂM THẦM GHI ĐÈ sản phẩm cũ thay vì tạo sản phẩm mới. Bước
 // này né rủi ro đó bằng cách luôn hậu tố thêm ký tự ngẫu nhiên khi phát hiện trùng.
+//
+// Ngoài né ghi đè, còn CẢNH BÁO trùng để admin tự quyết định (có thể admin đang lỡ dán lại 1
+// bài đã nhập trước đó, hoặc 2 bài dán trong cùng lô có tên giống nhau) — trả kèm mảng
+// "duplicates" liệt kê tên/giá sản phẩm đã có sẵn khớp tên, để hiển thị cảnh báo ở bước xác
+// nhận cuối, admin xem rồi mới bấm tạo (không tự động chặn, chỉ tự động chặn GHI ĐÈ).
 export async function prepareZaloRows({ category, categoryCode, items }) {
   const authError = requireAdmin();
   if (authError) return authError;
@@ -21,15 +26,26 @@ export async function prepareZaloRows({ category, categoryCode, items }) {
     return { success: false, error: "Danh sách sản phẩm đang trống." };
   }
 
-  const { data: existingSlugs, error: fetchError } = await supabaseAdmin.from("products").select("slug");
+  const { data: existingProducts, error: fetchError } = await supabaseAdmin
+    .from("products")
+    .select("slug, name, price");
   if (fetchError) {
     return { success: false, error: `Lỗi kiểm tra sản phẩm hiện có: ${fetchError.message}` };
   }
-  const takenSlugs = new Set((existingSlugs || []).map((r) => r.slug));
+  const existingBySlug = new Map((existingProducts || []).map((p) => [p.slug, p]));
+  const takenSlugs = new Set(existingBySlug.keys());
+  const seenInBatch = new Map(); // baseSlug -> tên item xuất hiện trước trong CÙNG lô đang dán
 
-  const rows = items.map((item, i) => {
-    let slug = slugify(item.name);
-    if (!slug) slug = `sp-${Date.now()}-${i}`;
+  const rows = [];
+  const duplicates = [];
+
+  items.forEach((item, i) => {
+    const baseSlug = slugify(item.name) || `sp-${Date.now()}-${i}`;
+    const existingMatch = existingBySlug.get(baseSlug) || null;
+    const batchMatchName = seenInBatch.get(baseSlug) || null;
+    seenInBatch.set(baseSlug, item.name);
+
+    let slug = baseSlug;
     if (takenSlugs.has(slug)) {
       slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
     }
@@ -38,7 +54,7 @@ export async function prepareZaloRows({ category, categoryCode, items }) {
     const variants = Array.isArray(item.variants) ? item.variants.filter(Boolean) : [];
     const code = `${categoryCode}-${Date.now().toString(36).toUpperCase()}${i}`;
 
-    return {
+    rows.push({
       slug,
       code,
       name: item.name,
@@ -54,8 +70,18 @@ export async function prepareZaloRows({ category, categoryCode, items }) {
       // Chưa gắn ảnh ở bước này — dùng "Gán ảnh hàng loạt" (đã có sẵn) ngay sau khi tạo xong.
       images: [],
       image_url: null,
-    };
+    });
+
+    if (existingMatch || batchMatchName) {
+      duplicates.push({
+        index: i,
+        name: item.name,
+        existingName: existingMatch?.name || null,
+        existingPrice: existingMatch?.price ?? null,
+        duplicateInSameBatch: batchMatchName,
+      });
+    }
   });
 
-  return { success: true, rows };
+  return { success: true, rows, duplicates };
 }

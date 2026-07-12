@@ -90,6 +90,13 @@ export default async function AdminProductsPage({ searchParams }) {
         >
           Nhập hàng loạt từ CSV
         </Link>
+        <Link
+          href="/admin/products/gan-anh"
+          className="cart-remove"
+          style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+        >
+          Gán ảnh hàng loạt
+        </Link>
       </div>
 
       <form method="GET" className="admin-filter-bar">

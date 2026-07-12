@@ -82,6 +82,8 @@ export default function NhapZaloForm({ categoryGroups }) {
   const [customVariants, setCustomVariants] = useState("");
   const [items, setItems] = useState([]);
   const [rows, setRows] = useState(null); // sau khi prepareZaloRows xong, sẵn sàng commit
+  const [duplicates, setDuplicates] = useState([]); // cảnh báo trùng tên, ứng với index trong rows
+  const [duplicatesAck, setDuplicatesAck] = useState(false); // admin đã xem cảnh báo trùng
   const [isBusy, setIsBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
@@ -101,6 +103,11 @@ export default function NhapZaloForm({ categoryGroups }) {
       return;
     }
     setItems(parsed);
+  }
+
+  function updateRowPrice(i, value) {
+    const n = Number(value);
+    setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, price: Number.isFinite(n) ? n : r.price } : r)));
   }
 
   function updateItem(i, field, value) {
@@ -137,10 +144,13 @@ export default function NhapZaloForm({ categoryGroups }) {
       return;
     }
     setRows(res.rows);
+    setDuplicates(res.duplicates || []);
+    setDuplicatesAck(false);
   }
 
   async function handleCommit() {
     if (!rows?.length) return;
+    if (duplicates.length > 0 && !duplicatesAck) return;
     setIsBusy(true);
     const res = await commitProductsCsv(rows);
     setIsBusy(false);
@@ -149,6 +159,8 @@ export default function NhapZaloForm({ categoryGroups }) {
       setText("");
       setItems([]);
       setRows(null);
+      setDuplicates([]);
+      setDuplicatesAck(false);
     }
   }
 
@@ -317,21 +329,88 @@ export default function NhapZaloForm({ categoryGroups }) {
           <div className="gan-anh-confirm-name">Bước 2 — Xác nhận tạo {rows.length} sản phẩm</div>
           <p style={{ fontSize: 13.5, margin: "0 0 12px" }}>
             Sản phẩm sẽ được tạo <b>chưa có ảnh</b> — dùng "Gán ảnh hàng loạt" ngay sau đó để gắn
-            ảnh cho từng sản phẩm.
+            ảnh cho từng sản phẩm. Kiểm tra lại giá lần cuối bên dưới trước khi xác nhận.
           </p>
-          <ul style={{ fontSize: 13, paddingLeft: 18, marginBottom: 14 }}>
-            {rows.map((r) => (
-              <li key={r.slug}>
-                {r.name} — {formatPrice(r.price)}{" "}
-                {r.variants?.length ? `(${r.variants.length} dòng máy)` : "(không gắn dòng máy)"}
-              </li>
-            ))}
-          </ul>
+
+          {duplicates.length > 0 && (
+            <div
+              style={{
+                border: "1.5px solid #B0503A",
+                borderRadius: "var(--radius)",
+                padding: "10px 14px",
+                marginBottom: 14,
+                background: "#fdf2ee",
+              }}
+            >
+              <p style={{ fontWeight: 600, color: "#B0503A", margin: "0 0 6px", fontSize: 13.5 }}>
+                ⚠️ Phát hiện {duplicates.length} sản phẩm có thể đã trùng — xem kỹ trước khi tạo:
+              </p>
+              <ul style={{ fontSize: 13, paddingLeft: 18, margin: 0 }}>
+                {duplicates.map((d) => (
+                  <li key={d.index}>
+                    <b>{d.name}</b>
+                    {d.existingName && (
+                      <> — trùng tên với sản phẩm đã có sẵn: <i>{d.existingName}</i> (giá hiện tại: {formatPrice(d.existingPrice)})</>
+                    )}
+                    {d.duplicateInSameBatch && (
+                      <> — trùng tên với dòng "<i>{d.duplicateInSameBatch}</i>" cũng vừa dán trong lô này</>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 13, cursor: "pointer" }}>
+                <input type="checkbox" checked={duplicatesAck} onChange={(e) => setDuplicatesAck(e.target.checked)} />
+                Tôi đã kiểm tra, vẫn muốn tạo các sản phẩm này (kể cả sản phẩm trùng tên)
+              </label>
+            </div>
+          )}
+
+          <table className="cart-table" style={{ marginBottom: 14 }}>
+            <thead>
+              <tr>
+                <th>Tên sản phẩm</th>
+                <th>Giá bán (đ)</th>
+                <th>Dòng máy</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={r.slug}>
+                  <td>{r.name}</td>
+                  <td>
+                    <input
+                      type="number"
+                      value={r.price ?? ""}
+                      onChange={(e) => updateRowPrice(i, e.target.value)}
+                      style={{ width: 110, border: "1px solid var(--line)", borderRadius: "var(--radius)", padding: "6px 8px", fontSize: 13.5 }}
+                    />
+                    <div style={{ fontSize: 11, color: "var(--ink-soft)" }}>{formatPrice(r.price)}</div>
+                  </td>
+                  <td>{r.variants?.length ? `${r.variants.length} dòng máy` : "không gắn dòng máy"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
           <div style={{ display: "flex", gap: 10 }}>
-            <button type="button" className="btn-primary" onClick={handleCommit} disabled={isBusy}>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handleCommit}
+              disabled={isBusy || (duplicates.length > 0 && !duplicatesAck)}
+            >
               {isBusy ? "Đang tạo..." : `Xác nhận tạo ${rows.length} sản phẩm`}
             </button>
-            <button type="button" className="cart-remove" onClick={() => setRows(null)} disabled={isBusy}>
+            <button
+              type="button"
+              className="cart-remove"
+              onClick={() => {
+                setRows(null);
+                setDuplicates([]);
+                setDuplicatesAck(false);
+              }}
+              disabled={isBusy}
+            >
               Quay lại sửa
             </button>
           </div>

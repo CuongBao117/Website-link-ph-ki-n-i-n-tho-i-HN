@@ -10,13 +10,13 @@ export default function ProductGallery({ images, name }) {
     <div>
       <div
         className="pdp-gallery-main"
-        style={list[active] ? { overflow: "hidden", padding: 0 } : undefined}
+        style={list[active] ? { overflow: "hidden", padding: 0, background: "var(--panel)" } : undefined}
       >
         {list[active] ? (
           <img
             src={list[active]}
             alt={name}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
           />
         ) : (
           "ẢNH SẢN PHẨM — GÓC CHÍNH"

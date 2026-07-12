@@ -38,6 +38,17 @@ export default function CategoryProductList({ products, totalCount, facets, page
 
   const hasFilters = currentBrand || currentVariant || currentMin || currentMax;
 
+  // Xoá bộ lọc: chỉ xoá brand/variant/minPrice/maxPrice/sort — GIỮ LẠI "q" (từ khoá tìm kiếm).
+  // Trước đây router.push(pathname) xoá luôn cả "q", nên ở trang /tim-kiem, bấm "Xoá bộ lọc"
+  // sẽ mất luôn kết quả tìm kiếm (quay về trạng thái "chưa nhập gì") — không phải điều người
+  // dùng mong đợi khi họ chỉ muốn bỏ lọc hãng/giá, vẫn muốn giữ nguyên từ khoá đang tìm.
+  function clearFilters() {
+    const params = new URLSearchParams(searchParams.toString());
+    ["brand", "variant", "minPrice", "maxPrice", "sort", "page"].forEach((key) => params.delete(key));
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname);
+  }
+
   return (
     <>
       <div className="filter-bar">
@@ -73,19 +84,27 @@ export default function CategoryProductList({ products, totalCount, facets, page
 
         <input
           type="number"
+          min="0"
           placeholder="Giá từ"
           className="admin-filter-input"
           style={{ minWidth: 100, flex: "0 1 110px" }}
           defaultValue={currentMin}
           onBlur={(e) => updateParam("minPrice", e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") updateParam("minPrice", e.currentTarget.value);
+          }}
         />
         <input
           type="number"
+          min="0"
           placeholder="Giá đến"
           className="admin-filter-input"
           style={{ minWidth: 100, flex: "0 1 110px" }}
           defaultValue={currentMax}
           onBlur={(e) => updateParam("maxPrice", e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") updateParam("maxPrice", e.currentTarget.value);
+          }}
         />
 
         <select
@@ -99,11 +118,7 @@ export default function CategoryProductList({ products, totalCount, facets, page
         </select>
 
         {hasFilters && (
-          <button
-            type="button"
-            className="cart-remove"
-            onClick={() => router.push(pathname)}
-          >
+          <button type="button" className="cart-remove" onClick={clearFilters}>
             Xoá bộ lọc
           </button>
         )}

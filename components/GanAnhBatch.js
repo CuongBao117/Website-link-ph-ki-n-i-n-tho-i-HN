@@ -76,13 +76,18 @@ export default function GanAnhBatch({ categoryGroups }) {
     if (priceOverride !== undefined && priceOverride !== "") {
       formData.set("price", priceOverride);
     }
-    const res = await attachImageToProduct(formData);
-    setIsBusy(false);
-    if (res.success) {
-      setLastProduct({ slug: product.slug, name: product.name });
-      goNext({ fileName: current.file.name, status: "attached", label: product.name });
-    } else {
-      alert(`Lỗi: ${res.error}`);
+    try {
+      const res = await attachImageToProduct(formData);
+      if (res.success) {
+        setLastProduct({ slug: product.slug, name: product.name });
+        goNext({ fileName: current.file.name, status: "attached", label: product.name });
+      } else {
+        alert(`Lỗi: ${res.error}`);
+      }
+    } catch (err) {
+      alert(`Có lỗi khi gắn ảnh: ${err?.message || "không rõ nguyên nhân"} — thử lại.`);
+    } finally {
+      setIsBusy(false);
     }
   }
 
@@ -110,13 +115,18 @@ export default function GanAnhBatch({ categoryGroups }) {
     formData.set("image", current.file);
 
     setIsBusy(true);
-    const res = await createProductWithImage(formData);
-    setIsBusy(false);
-    if (res.success) {
-      setLastProduct({ slug: res.slug, name: pendingCreate.name });
-      goNext({ fileName: current.file.name, status: "created", label: pendingCreate.name });
-    } else {
-      alert(`Lỗi: ${res.error}`);
+    try {
+      const res = await createProductWithImage(formData);
+      if (res.success) {
+        setLastProduct({ slug: res.slug, name: pendingCreate.name });
+        goNext({ fileName: current.file.name, status: "created", label: pendingCreate.name });
+      } else {
+        alert(`Lỗi: ${res.error}`);
+      }
+    } catch (err) {
+      alert(`Có lỗi khi tạo sản phẩm: ${err?.message || "không rõ nguyên nhân"} — thử lại.`);
+    } finally {
+      setIsBusy(false);
     }
   }
 

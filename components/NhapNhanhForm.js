@@ -4,6 +4,11 @@ import { useState } from "react";
 import { createProductBatch } from "@/app/admin/(protected)/products/nhap-nhanh/actions";
 import PriceInput from "@/components/PriceInput";
 
+function formatPrice(value) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "";
+  return Number(value).toLocaleString("vi-VN") + "đ";
+}
+
 function parsePrice(raw) {
   const s = raw.trim().toLowerCase();
   const hasK = /k\b/.test(s) || s.endsWith("k");

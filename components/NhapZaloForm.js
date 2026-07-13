@@ -134,34 +134,44 @@ export default function NhapZaloForm({ categoryGroups }) {
     setIsBusy(true);
     setError("");
     const categoryOption = categoryGroups.flatMap((g) => g.categories).find((c) => c.slug === category);
-    const res = await prepareZaloRows({
-      category,
-      categoryCode: categoryOption?.code || "SP",
-      items: items.map((it) => ({ name: it.name, price: Number(it.price), variants: it.variants })),
-    });
-    setIsBusy(false);
-    if (!res.success) {
-      setError(res.error || "Có lỗi khi chuẩn bị dữ liệu.");
-      return;
+    try {
+      const res = await prepareZaloRows({
+        category,
+        categoryCode: categoryOption?.code || "SP",
+        items: items.map((it) => ({ name: it.name, price: Number(it.price), variants: it.variants })),
+      });
+      if (!res.success) {
+        setError(res.error || "Có lỗi khi chuẩn bị dữ liệu.");
+        return;
+      }
+      setRows(res.rows);
+      setDuplicates(res.duplicates || []);
+      setDuplicatesAck(false);
+    } catch (err) {
+      setError(`Có lỗi khi chuẩn bị dữ liệu: ${err?.message || "không rõ nguyên nhân"}`);
+    } finally {
+      setIsBusy(false);
     }
-    setRows(res.rows);
-    setDuplicates(res.duplicates || []);
-    setDuplicatesAck(false);
   }
 
   async function handleCommit() {
     if (!rows?.length) return;
     if (duplicates.length > 0 && !duplicatesAck) return;
     setIsBusy(true);
-    const res = await commitProductsCsv(rows);
-    setIsBusy(false);
-    setResult(res);
-    if (res.success) {
-      setText("");
-      setItems([]);
-      setRows(null);
-      setDuplicates([]);
-      setDuplicatesAck(false);
+    try {
+      const res = await commitProductsCsv(rows);
+      setResult(res);
+      if (res.success) {
+        setText("");
+        setItems([]);
+        setRows(null);
+        setDuplicates([]);
+        setDuplicatesAck(false);
+      }
+    } catch (err) {
+      setResult({ success: false, batchErrors: [err?.message || "không rõ nguyên nhân"] });
+    } finally {
+      setIsBusy(false);
     }
   }
 

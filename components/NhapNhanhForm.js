@@ -115,14 +115,21 @@ export default function NhapNhanhForm({ categoryGroups }) {
     sharedImages.forEach((img) => formData.append("sharedImages", img.file));
 
     setIsBusy(true);
-    const res = await createProductBatch(formData);
-    setIsBusy(false);
-    setResult(res);
-    setShowFinalConfirm(false);
-    if (res.success) {
-      setText("");
-      setItems([]);
-      setSharedImages([]);
+    try {
+      const res = await createProductBatch(formData);
+      setResult(res);
+      setShowFinalConfirm(false);
+      if (res.success) {
+        setText("");
+        setItems([]);
+        setSharedImages([]);
+      }
+    } catch (err) {
+      // Lỗi mạng/timeout khi tải nhiều ảnh nặng cùng lúc — không để nút bấm kẹt mãi ở
+      // "Đang xử lý..." mà không rõ lý do.
+      setResult({ success: false, error: `Có lỗi khi lưu: ${err?.message || "không rõ nguyên nhân"} — thử lại với ít ảnh/ảnh nhẹ hơn nếu lỗi lặp lại.` });
+    } finally {
+      setIsBusy(false);
     }
   }
 

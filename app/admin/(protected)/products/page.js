@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { formatPrice } from "@/data/products";
+import { formatPrice, FACET_ROW_LIMIT } from "@/data/products";
 import DeleteProductButton from "@/components/DeleteProductButton";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +50,10 @@ export default async function AdminProductsPage({ searchParams }) {
   // Danh sách Hãng/Đời máy để đổ vào 2 dropdown lọc — chỉ lấy 2 cột nhẹ (brand, variants),
   // không lấy nguyên dòng sản phẩm. Dùng đúng 2 cột đã có sẵn và đang chạy ở bộ lọc trang tìm
   // kiếm khách hàng (xem getFilteredProducts trong data/products.js) — không thêm dữ liệu mới.
-  const { data: facetRows } = await supabaseAdmin.from("products").select("brand, variants");
+  const { data: facetRows } = await supabaseAdmin
+    .from("products")
+    .select("brand, variants")
+    .limit(FACET_ROW_LIMIT);
   const brandOptions = Array.from(new Set((facetRows || []).map((p) => p.brand).filter(Boolean))).sort();
   const variantOptions = Array.from(
     new Set((facetRows || []).flatMap((p) => p.variants || []).filter(Boolean))

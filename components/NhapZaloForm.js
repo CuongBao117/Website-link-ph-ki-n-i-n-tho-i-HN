@@ -338,7 +338,7 @@ export default function NhapZaloForm({ categoryGroups }) {
         <div className="gan-anh-confirm" style={{ marginTop: 24 }}>
           <div className="gan-anh-confirm-name">Bước 2 — Xác nhận tạo {rows.length} sản phẩm</div>
           <p style={{ fontSize: 13.5, margin: "0 0 12px" }}>
-            Sản phẩm sẽ được tạo <b>chưa có ảnh</b> — dùng "Gán ảnh hàng loạt" ngay sau đó để gắn
+            Sản phẩm sẽ được tạo <b>chưa có ảnh</b> — dùng “Gán ảnh hàng loạt” ngay sau đó để gắn
             ảnh cho từng sản phẩm. Kiểm tra lại giá lần cuối bên dưới trước khi xác nhận.
           </p>
 
@@ -363,7 +363,7 @@ export default function NhapZaloForm({ categoryGroups }) {
                       <> — trùng tên với sản phẩm đã có sẵn: <i>{d.existingName}</i> (giá hiện tại: {formatPrice(d.existingPrice)})</>
                     )}
                     {d.duplicateInSameBatch && (
-                      <> — trùng tên với dòng "<i>{d.duplicateInSameBatch}</i>" cũng vừa dán trong lô này</>
+                      <> — trùng tên với dòng “<i>{d.duplicateInSameBatch}</i>” cũng vừa dán trong lô này</>
                     )}
                   </li>
                 ))}

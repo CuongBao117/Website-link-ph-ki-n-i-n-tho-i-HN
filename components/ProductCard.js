@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { formatPrice } from "@/data/products";
 import { useCart } from "@/context/CartContext";
@@ -38,10 +39,12 @@ export default function ProductCard({ product }) {
     >
       <div className="prod-thumb" style={{ position: "relative" }}>
         {product.imageUrl && (
-          <img
+          <Image
             src={product.imageUrl}
             alt={product.name}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 200px"
+            style={{ objectFit: "cover" }}
           />
         )}
         {outOfStock && (

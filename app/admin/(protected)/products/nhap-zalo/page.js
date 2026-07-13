@@ -32,13 +32,13 @@ export default async function NhapZaloPage() {
         <p style={{ marginTop: 0, fontWeight: 600 }}>Dùng khi nào?</p>
         <p>
           Khi mỗi sản phẩm là 1 bài đăng riêng trên Zalo, với 1 giá sỉ áp dụng chung cho nhiều dòng
-          máy tương thích. Khác với <b>"Nhập nhanh nhiều dòng máy"</b> — công cụ đó dùng khi mỗi
+          máy tương thích. Khác với <b>“Nhập nhanh nhiều dòng máy”</b> — công cụ đó dùng khi mỗi
           dòng máy có 1 giá KHÁC nhau (VD cáp sạc: iPhone 11 giá khác, 11 Pro Max giá khác).
         </p>
         <p style={{ marginBottom: 0 }}>
           Copy caption từng bài (tên sản phẩm ở dòng đầu, dòng chứa <code>Sỉ ...k</code> ở dưới),
           dán tất cả vào ô bên dưới — mỗi bài cách nhau 1 dòng trống hoặc <code>---</code>. Sản
-          phẩm tạo ra sẽ <b>chưa có ảnh</b> — dùng "Gán ảnh hàng loạt" ngay sau đó để gắn ảnh cho
+          phẩm tạo ra sẽ <b>chưa có ảnh</b> — dùng “Gán ảnh hàng loạt” ngay sau đó để gắn ảnh cho
           từng sản phẩm.
         </p>
       </div>

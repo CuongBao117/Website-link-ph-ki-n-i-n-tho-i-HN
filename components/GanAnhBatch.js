@@ -176,7 +176,7 @@ export default function GanAnhBatch({ categoryGroups }) {
                 disabled={isBusy}
                 onClick={() => handleAttach(lastProduct)}
               >
-                📌 Ảnh này cũng của "{lastProduct.name}" — gắn luôn (thêm góc chụp khác)
+                📌 Ảnh này cũng của “{lastProduct.name}” — gắn luôn (thêm góc chụp khác)
               </button>
             )}
 
@@ -244,7 +244,7 @@ export default function GanAnhBatch({ categoryGroups }) {
                 )}
 
                 {query.trim() && !isSearching && results.length === 0 && (
-                  <div className="gan-anh-hint">Không tìm thấy sản phẩm nào khớp "{query}".</div>
+                  <div className="gan-anh-hint">Không tìm thấy sản phẩm nào khớp “{query}”.</div>
                 )}
               </>
             )}

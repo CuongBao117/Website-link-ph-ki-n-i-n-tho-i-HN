@@ -1478,3 +1478,57 @@ nav.catnav.mega-nav {
 .password-input-toggle:hover {
   color: var(--teal);
 }
+
+/* ===== đơn hàng của tôi ===== */
+.order-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.order-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+.order-card-body {
+  padding: 0 20px 20px;
+  border-top: 1px solid var(--line);
+}
+.order-item-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.order-item-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: #fff;
+  flex-shrink: 0;
+}
+.order-item-info {
+  flex: 1;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.order-item-info a {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+.order-item-info a:hover {
+  color: var(--teal);
+}

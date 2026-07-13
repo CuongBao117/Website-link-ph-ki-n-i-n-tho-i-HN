@@ -39,10 +39,10 @@ export default async function GanAnhPage() {
         <p>
           3. Với mỗi ảnh: gõ tên sản phẩm (đọc từ caption Zalo) vào ô tìm kiếm — nếu ra đúng sản phẩm đã
           có sẵn, bấm chọn để gắn ảnh. Nếu không tìm thấy (sản phẩm mới, chưa từng nhập), bấm{" "}
-          <b>"Không thấy — tạo sản phẩm mới"</b> để nhập nhanh tên/giá/danh mục kèm luôn ảnh này.
+          <b>“Không thấy — tạo sản phẩm mới”</b> để nhập nhanh tên/giá/danh mục kèm luôn ảnh này.
         </p>
         <p style={{ marginBottom: 0 }}>
-          Ảnh nào không cần dùng (ảnh nhóm nhiều sản phẩm, ảnh mờ...) bấm <b>"Bỏ qua"</b> để chuyển ảnh
+          Ảnh nào không cần dùng (ảnh nhóm nhiều sản phẩm, ảnh mờ...) bấm <b>“Bỏ qua”</b> để chuyển ảnh
           tiếp theo.
         </p>
       </div>

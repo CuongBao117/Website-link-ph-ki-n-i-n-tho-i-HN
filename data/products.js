@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { COMMON_BRANDS } from "@/lib/brands";
 import { normalizeSearchText, escapeSearchTerm } from "@/lib/searchNormalize";
 
-const FACET_ROW_LIMIT = 500; // đủ đa dạng để liệt kê hết hãng/dòng máy thực tế, tránh quét cả bảng mỗi lần lọc
+export const FACET_ROW_LIMIT = 500; // đủ đa dạng để liệt kê hết hãng/dòng máy thực tế, tránh quét cả bảng mỗi lần lọc
 
 // 4 nhóm danh mục lớn — đọc từ bảng "category_groups" (xem migration_011), KHÔNG hardcode
 // trong code nữa. Trước đây danh sách này bị lặp lại ở 3 nơi (data/products.js, MegaMenu.js,
@@ -102,13 +102,57 @@ export async function getProductsByCategory(slug) {
   return data.map(mapProductRow);
 }
 
-export async function getRelatedProducts(slug, limit = 4) {
-  const { data, error } = await supabase.from("products").select("*").neq("slug", slug).limit(limit);
-  if (error) {
-    console.error("Lỗi tải sản phẩm liên quan:", error.message);
-    return [];
+// "Sản phẩm liên quan" — ưu tiên CÙNG DANH MỤC, thiếu thì bù bằng cùng HÃNG, thiếu nữa thì
+// mới lấy đại sản phẩm khác (để mục này không bao giờ trống trên catalog còn ít hàng), nhưng
+// không bao giờ lẫn sản phẩm hoàn toàn không liên quan khi đã đủ hàng cùng danh mục/hãng.
+export async function getRelatedProducts(product, limit = 4) {
+  if (!product?.slug) return [];
+
+  const picked = new Map();
+  const addRows = (rows) => {
+    for (const row of rows || []) {
+      if (row.slug !== product.slug && !picked.has(row.slug)) picked.set(row.slug, row);
+      if (picked.size >= limit) break;
+    }
+  };
+
+  const { data: sameCategory, error: categoryError } = await supabase
+    .from("products")
+    .select("*")
+    .eq("category", product.category)
+    .neq("slug", product.slug)
+    .limit(limit * 2);
+  if (categoryError) {
+    console.error("Lỗi tải sản phẩm liên quan:", categoryError.message);
   }
-  return data.map(mapProductRow);
+  addRows(sameCategory);
+
+  if (picked.size < limit && product.brand) {
+    const { data: sameBrand, error: brandError } = await supabase
+      .from("products")
+      .select("*")
+      .eq("brand", product.brand)
+      .neq("slug", product.slug)
+      .limit(limit * 2);
+    if (brandError) {
+      console.error("Lỗi tải sản phẩm liên quan (theo hãng):", brandError.message);
+    }
+    addRows(sameBrand);
+  }
+
+  if (picked.size < limit) {
+    const { data: fallback, error: fallbackError } = await supabase
+      .from("products")
+      .select("*")
+      .neq("slug", product.slug)
+      .limit(limit * 2);
+    if (fallbackError) {
+      console.error("Lỗi tải sản phẩm liên quan (dự phòng):", fallbackError.message);
+    }
+    addRows(fallback);
+  }
+
+  return Array.from(picked.values()).slice(0, limit).map(mapProductRow);
 }
 
 // Hàm dùng chung cho trang chủ (xem trước theo danh mục), trang danh mục (/danh-muc/[slug])

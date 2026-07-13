@@ -14,7 +14,7 @@ export default function AdminLoginPage({ searchParams }) {
           className="empty-state"
           style={{ color: "var(--copper-dark)", marginBottom: 20, padding: 16 }}
         >
-          Sai mật khẩu, vui lòng thử lại.
+          {decodeURIComponent(hasError)}
         </div>
       )}
 

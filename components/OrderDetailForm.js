@@ -78,7 +78,7 @@ export default function OrderDetailForm({ order }) {
 
       {items.length === 0 && (
         <div className="empty-state">
-          Đơn hàng không còn sản phẩm nào — nếu muốn huỷ cả đơn, hãy đổi trạng thái thành "Đã huỷ" thay vì xoá hết sản phẩm rồi lưu.
+          Đơn hàng không còn sản phẩm nào — nếu muốn huỷ cả đơn, hãy đổi trạng thái thành “Đã huỷ” thay vì xoá hết sản phẩm rồi lưu.
         </div>
       )}
 

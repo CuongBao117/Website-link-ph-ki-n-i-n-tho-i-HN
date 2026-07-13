@@ -85,7 +85,13 @@ export async function createProductBatch(formData) {
     };
   });
 
-  const { error } = await supabaseAdmin.from("products").insert(rows);
+  // upsert (không phải insert thường): nếu bấm "Xác nhận tạo" 2 lần liên tiếp (VD tưởng nút
+  // không phản hồi nên bấm lại), 2 request có thể cùng kiểm tra "slug đã tồn tại chưa" ở cùng
+  // 1 thời điểm (chưa thấy request kia vừa tạo xong) rồi cùng cố insert 1 slug giống nhau ->
+  // insert thường sẽ báo lỗi "duplicate key value violates unique constraint products_pkey".
+  // Dùng upsert để lần bấm lặp lại chỉ CẬP NHẬT thay vì báo lỗi, giống cách nhap-zalo/import CSV
+  // đã làm.
+  const { error } = await supabaseAdmin.from("products").upsert(rows, { onConflict: "slug" });
 
   if (error) {
     console.error("Lỗi tạo hàng loạt sản phẩm:", error.message);

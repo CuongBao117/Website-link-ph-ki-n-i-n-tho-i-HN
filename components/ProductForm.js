@@ -1,5 +1,6 @@
 import ProductImageManager from "@/components/ProductImageManager";
 import SlugField from "@/components/SlugField";
+import PriceInput from "@/components/PriceInput";
 
 export default function ProductForm({ action, categoryGroups, defaultValues, isEdit }) {
   const v = defaultValues || {};
@@ -68,11 +69,11 @@ export default function ProductForm({ action, categoryGroups, defaultValues, isE
       <div style={{ display: "flex", gap: 14 }}>
         <div style={{ flex: 1 }}>
           <label>Giá bán (đ)</label>
-          <input type="number" name="price" defaultValue={v.price} placeholder="890000" required min="0" />
+          <PriceInput name="price" defaultValue={v.price} placeholder="890.000" required />
         </div>
         <div style={{ flex: 1 }}>
           <label>Giá gốc (đ) — để trống nếu không giảm giá</label>
-          <input type="number" name="oldPrice" defaultValue={v.oldPrice || ""} placeholder="1050000" min="0" />
+          <PriceInput name="oldPrice" defaultValue={v.oldPrice || ""} placeholder="1.050.000" />
         </div>
       </div>
 

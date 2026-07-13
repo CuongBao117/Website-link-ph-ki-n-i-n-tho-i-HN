@@ -1442,3 +1442,16 @@ nav.catnav.mega-nav {
     position: static;
   }
 }
+
+.price-input-wrap {
+  position: relative;
+}
+.price-input-suffix {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-soft);
+  font-size: 13px;
+  pointer-events: none;
+}

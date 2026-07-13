@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createProductBatch } from "@/app/admin/(protected)/products/nhap-nhanh/actions";
+import PriceInput from "@/components/PriceInput";
 
 function parsePrice(raw) {
   const s = raw.trim().toLowerCase();
@@ -232,11 +233,10 @@ export default function NhapNhanhForm({ categoryGroups }) {
                     />
                   </td>
                   <td>
-                    <input
-                      type="number"
+                    <PriceInput
                       value={it.price}
-                      onChange={(e) => updateItem(i, "price", e.target.value)}
-                      style={{ width: 120, border: "1px solid var(--line)", borderRadius: "var(--radius)", padding: "6px 8px", fontSize: 13.5 }}
+                      onChange={(digits) => updateItem(i, "price", digits)}
+                      inputStyle={{ width: 120, border: "1px solid var(--line)", borderRadius: "var(--radius)", padding: "6px 34px 6px 8px", fontSize: 13.5 }}
                     />
                   </td>
                   <td>

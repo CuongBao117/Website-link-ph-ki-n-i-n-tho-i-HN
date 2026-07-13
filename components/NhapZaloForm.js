@@ -4,6 +4,7 @@ import { useState } from "react";
 import { prepareZaloRows } from "@/app/admin/(protected)/products/nhap-zalo/actions";
 import { commitProductsCsv } from "@/app/admin/(protected)/products/import/actions";
 import { VARIANT_PRESETS } from "@/lib/variantPresets";
+import PriceInput from "@/components/PriceInput";
 
 function formatPrice(value) {
   if (value === null || value === undefined || value === "") return "";
@@ -291,11 +292,10 @@ export default function NhapZaloForm({ categoryGroups }) {
                     />
                   </td>
                   <td>
-                    <input
-                      type="number"
+                    <PriceInput
                       value={it.price ?? ""}
-                      onChange={(e) => updateItem(i, "price", e.target.value)}
-                      style={{ width: 110, border: "1px solid var(--line)", borderRadius: "var(--radius)", padding: "6px 8px", fontSize: 13.5 }}
+                      onChange={(digits) => updateItem(i, "price", digits ? Number(digits) : null)}
+                      inputStyle={{ width: 130, border: "1px solid var(--line)", borderRadius: "var(--radius)", padding: "6px 34px 6px 8px", fontSize: 13.5 }}
                     />
                     {it.price === null && (
                       <div style={{ fontSize: 11, color: "#B0503A" }}>Không tự nhận ra giá — điền tay</div>
@@ -378,13 +378,11 @@ export default function NhapZaloForm({ categoryGroups }) {
                 <tr key={r.slug}>
                   <td>{r.name}</td>
                   <td>
-                    <input
-                      type="number"
+                    <PriceInput
                       value={r.price ?? ""}
-                      onChange={(e) => updateRowPrice(i, e.target.value)}
-                      style={{ width: 110, border: "1px solid var(--line)", borderRadius: "var(--radius)", padding: "6px 8px", fontSize: 13.5 }}
+                      onChange={(digits) => updateRowPrice(i, digits)}
+                      inputStyle={{ width: 130, border: "1px solid var(--line)", borderRadius: "var(--radius)", padding: "6px 34px 6px 8px", fontSize: 13.5 }}
                     />
-                    <div style={{ fontSize: 11, color: "var(--ink-soft)" }}>{formatPrice(r.price)}</div>
                   </td>
                   <td>{r.variants?.length ? `${r.variants.length} dòng máy` : "không gắn dòng máy"}</td>
                 </tr>

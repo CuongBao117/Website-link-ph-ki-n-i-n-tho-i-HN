@@ -6,6 +6,7 @@ import {
   attachImageToProduct,
   createProductWithImage,
 } from "@/app/admin/(protected)/products/gan-anh/actions";
+import PriceInput from "@/components/PriceInput";
 
 function formatPrice(value) {
   if (value === null || value === undefined) return "";
@@ -173,11 +174,9 @@ export default function GanAnhBatch({ categoryGroups }) {
               <div className="gan-anh-confirm">
                 <div className="gan-anh-confirm-name">Gắn ảnh vào: {selected.name}</div>
                 <label>Giá bán (đ) — sửa lại nếu giá cũ bị sai</label>
-                <input
-                  type="number"
-                  min="0"
+                <PriceInput
                   value={selected.price}
-                  onChange={(e) => setSelected((s) => ({ ...s, price: e.target.value }))}
+                  onChange={(digits) => setSelected((s) => ({ ...s, price: digits }))}
                   autoFocus
                 />
                 <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
@@ -261,7 +260,7 @@ export default function GanAnhBatch({ categoryGroups }) {
                 <input name="name" defaultValue={query} required placeholder="Pin DLC iPhone 13" />
 
                 <label>Giá bán (đ)</label>
-                <input type="number" name="price" required min="0" placeholder="115000" />
+                <PriceInput name="price" required placeholder="115.000" />
 
                 <label>Danh mục</label>
                 <select name="category" required>

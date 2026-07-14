@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCustomerUser } from "@/lib/customerAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { formatPrice } from "@/data/products";
+import CustomerOrderCard from "@/components/CustomerOrderCard";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +28,9 @@ export default async function MyOrdersPage() {
   // không như cách tra theo SĐT cũ (đã gỡ bỏ vì có thể bị dò để xem đơn của người khác).
   const { data: orders, error } = await supabaseAdmin
     .from("orders")
-    .select("id, order_code, customer_name, address, total_price, shipping_fee, cart_items, status, created_at")
+    .select(
+      "id, order_code, customer_name, phone_number, address, note, total_price, shipping_fee, cart_items, status, created_at"
+    )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -40,6 +42,26 @@ export default async function MyOrdersPage() {
         </div>
         <div className="empty-state">Có lỗi khi tải đơn hàng — vui lòng thử lại sau.</div>
       </main>
+    );
+  }
+
+  // Gộp lấy ảnh đại diện của các sản phẩm đã đặt trong TẤT CẢ đơn bằng 1 query duy nhất
+  // (không query lặp lại theo từng đơn/từng dòng) — sản phẩm có thể đã bị xoá khỏi catalog
+  // sau khi đặt hàng nên map này có thể thiếu vài slug, component tự xử lý phần đó.
+  const allSlugs = Array.from(
+    new Set((orders || []).flatMap((o) => (o.cart_items || []).map((i) => i.slug).filter(Boolean)))
+  );
+  let productImages = {};
+  if (allSlugs.length > 0) {
+    const { data: productRows } = await supabaseAdmin
+      .from("products")
+      .select("slug, images, image_url")
+      .in("slug", allSlugs);
+    productImages = Object.fromEntries(
+      (productRows || []).map((p) => [
+        p.slug,
+        (Array.isArray(p.images) && p.images[0]) || p.image_url || null,
+      ])
     );
   }
 
@@ -60,33 +82,7 @@ export default async function MyOrdersPage() {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {orders.map((order) => (
-            <div key={order.id} className="checkout-summary">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <strong>{order.order_code}</strong>
-                <span className="prod-code">{order.status}</span>
-              </div>
-              <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginBottom: 10 }}>
-                {new Date(order.created_at).toLocaleString("vi-VN")} · Giao tới: {order.address}
-              </div>
-
-              {(order.cart_items || []).map((item, i) => (
-                <div key={i} className="checkout-item">
-                  <span>
-                    {item.name} ({item.variant}) x{item.qty}
-                  </span>
-                  <span>{formatPrice(item.price * item.qty)}</span>
-                </div>
-              ))}
-
-              <div className="checkout-line">
-                <span>Phí vận chuyển</span>
-                <span>{order.shipping_fee > 0 ? formatPrice(order.shipping_fee) : "Miễn phí"}</span>
-              </div>
-              <div className="checkout-total">
-                <span>Tổng thu (COD)</span>
-                <strong>{formatPrice(order.total_price)}</strong>
-              </div>
-            </div>
+            <CustomerOrderCard key={order.id} order={order} productImages={productImages} />
           ))}
         </div>
       )}

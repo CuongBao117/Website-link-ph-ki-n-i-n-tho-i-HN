@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PasswordInput from "@/components/PasswordInput";
 import { login } from "./actions";
 
 export default function LoginPage({ searchParams }) {
@@ -32,7 +33,7 @@ export default function LoginPage({ searchParams }) {
         <input type="email" name="email" required autoFocus placeholder="ban@email.com" />
 
         <label>Mật khẩu</label>
-        <input type="password" name="password" required placeholder="Mật khẩu" />
+        <PasswordInput name="password" required placeholder="Mật khẩu" autoComplete="current-password" />
 
         <button type="submit" className="btn-primary" style={{ marginTop: 16 }}>
           Đăng nhập

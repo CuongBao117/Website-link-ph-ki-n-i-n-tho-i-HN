@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 export default function ProductGallery({ images, name }) {
   const [active, setActive] = useState(0);
@@ -10,13 +11,20 @@ export default function ProductGallery({ images, name }) {
     <div>
       <div
         className="pdp-gallery-main"
-        style={list[active] ? { overflow: "hidden", padding: 0, background: "var(--panel)" } : undefined}
+        style={
+          list[active]
+            ? { position: "relative", overflow: "hidden", padding: 0, background: "var(--panel)" }
+            : undefined
+        }
       >
         {list[active] ? (
-          <img
+          <Image
             src={list[active]}
             alt={name}
-            style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+            fill
+            sizes="(max-width: 900px) 100vw, 500px"
+            style={{ objectFit: "contain" }}
+            priority
           />
         ) : (
           "ẢNH SẢN PHẨM — GÓC CHÍNH"

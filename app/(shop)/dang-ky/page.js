@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PasswordInput from "@/components/PasswordInput";
 import { register } from "./actions";
 
 export default function RegisterPage({ searchParams }) {
@@ -24,7 +25,13 @@ export default function RegisterPage({ searchParams }) {
         <input type="email" name="email" required placeholder="ban@email.com" />
 
         <label>Mật khẩu</label>
-        <input type="password" name="password" required minLength={6} placeholder="Ít nhất 6 ký tự" />
+        <PasswordInput
+          name="password"
+          required
+          minLength={6}
+          placeholder="Ít nhất 6 ký tự"
+          autoComplete="new-password"
+        />
 
         <button type="submit" className="btn-primary" style={{ marginTop: 16 }}>
           Đăng ký

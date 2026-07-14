@@ -42,7 +42,7 @@ export default async function SearchPage({ searchParams }) {
 
       {!q ? (
         <div className="empty-state">
-          Gõ tên sản phẩm hoặc tên máy (ví dụ "iPhone 13", "pin Samsung"...) vào ô tìm kiếm ở đầu trang.
+          Gõ tên sản phẩm hoặc tên máy (ví dụ “iPhone 13”, “pin Samsung”...) vào ô tìm kiếm ở đầu trang.
         </div>
       ) : error ? (
         <div className="empty-state" style={{ color: "#B0503A" }}>

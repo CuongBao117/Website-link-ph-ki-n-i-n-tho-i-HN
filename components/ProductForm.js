@@ -61,7 +61,7 @@ export default function ProductForm({ action, categoryGroups, defaultValues, isE
       </select>
       {currentCategoryIsOrphan && (
         <div style={{ fontSize: 12, color: "#B0503A", marginTop: 4 }}>
-          Sản phẩm này đang ở danh mục "{v.category}" — danh mục đó đã bị gỡ khỏi menu nên khách sẽ không
+          Sản phẩm này đang ở danh mục “{v.category}” — danh mục đó đã bị gỡ khỏi menu nên khách sẽ không
           thấy được qua trang chủ/mega menu. Nên chọn lại 1 danh mục đang hoạt động ở trên.
         </div>
       )}

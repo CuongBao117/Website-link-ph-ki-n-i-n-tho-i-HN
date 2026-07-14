@@ -3,7 +3,10 @@ import TrustStrip from "@/components/TrustStrip";
 import ProductGrid from "@/components/ProductGrid";
 import { getCategories, getFilteredProducts } from "@/data/products";
 
-export const dynamic = "force-dynamic";
+// ISR: trang chủ được cache và tái tạo lại tối đa mỗi 60 giây thay vì query DB ở MỌI lượt
+// truy cập. Giá/tồn kho hiện ở đây có thể trễ tối đa 60s so với thực tế — chấp nhận được cho
+// khu vực xem trước; trang chi tiết sản phẩm và giỏ hàng/đặt hàng vẫn luôn real-time.
+export const revalidate = 60;
 
 const PREVIEW_COUNT = 8;
 

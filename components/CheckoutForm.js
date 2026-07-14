@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { formatPrice } from "@/data/products";
 import { calcShippingFee } from "@/lib/shipping";
-import { placeOrder } from "@/app/dat-hang/actions";
+import { placeOrder } from "@/app/(shop)/dat-hang/actions";
 
 export default function CheckoutForm({ userEmail }) {
   const { items, totalPrice, clearCart } = useCart();

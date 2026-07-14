@@ -1,3 +1,10 @@
+// Ảnh sản phẩm được lưu ở Supabase Storage (bucket "product-images"), URL public dạng
+// https://<project-ref>.supabase.co/storage/v1/object/public/... — next/image cần khai báo
+// trước domain remote nào được phép tối ưu ảnh, nên lấy thẳng từ NEXT_PUBLIC_SUPABASE_URL.
+const supabaseHostname = process.env.NEXT_PUBLIC_SUPABASE_URL
+  ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
+  : undefined;
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Next.js mặc định giới hạn dữ liệu gửi lên qua Server Action ở 1MB — quá nhỏ để:
@@ -8,6 +15,11 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: "25mb",
     },
+  },
+  images: {
+    remotePatterns: supabaseHostname
+      ? [{ protocol: "https", hostname: supabaseHostname, pathname: "/storage/v1/object/public/**" }]
+      : [],
   },
 };
 

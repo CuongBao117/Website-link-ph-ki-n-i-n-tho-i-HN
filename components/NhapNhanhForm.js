@@ -182,7 +182,7 @@ export default function NhapNhanhForm({ categoryGroups }) {
       <div style={{ marginTop: 16 }}>
         <label style={{ fontSize: 12, color: "var(--ink-soft)", display: "block", marginBottom: 6 }}>
           Ảnh đại diện dùng chung cho cả lô — chọn được nhiều ảnh (không bắt buộc, có thể để trống rồi
-          gắn ảnh sau bằng "Gán ảnh hàng loạt")
+          gắn ảnh sau bằng “Gán ảnh hàng loạt”)
         </label>
         <input type="file" accept="image/*" multiple onChange={handleImagesChange} />
         {sharedImages.length > 0 && (
@@ -306,8 +306,8 @@ export default function NhapNhanhForm({ categoryGroups }) {
             </>
           ) : (
             <p style={{ fontSize: 12.5, color: "#B0503A", marginBottom: 14 }}>
-              ⚠ Chưa chọn ảnh nào — {items.length} sản phẩm sẽ được tạo không có ảnh, bổ sung sau qua "Gán ảnh
-              hàng loạt".
+              ⚠ Chưa chọn ảnh nào — {items.length} sản phẩm sẽ được tạo không có ảnh, bổ sung sau qua “Gán ảnh
+              hàng loạt”.
             </p>
           )}
 

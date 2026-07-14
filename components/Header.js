@@ -1,7 +1,8 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getCategoriesGrouped } from "@/data/products";
 import { getCustomerUser } from "@/lib/customerAuth";
-import { logout } from "@/app/dang-nhap/actions";
+import { logout } from "@/app/(shop)/dang-nhap/actions";
 import CartBadge from "@/components/CartBadge";
 import MegaMenu from "@/components/MegaMenu";
 import SearchBox from "@/components/SearchBox";
@@ -25,7 +26,7 @@ export default async function Header() {
 
       <header className="site-header">
         <Link href="/" className="logo" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <img src="/logo.png" alt="Logo" style={{ width: 42, height: 42, objectFit: "contain" }} />
+          <Image src="/logo.png" alt="Logo" width={42} height={42} style={{ objectFit: "contain" }} priority />
           <span style={{ lineHeight: 1.15 }}>
             LINH PHỤ KIỆN
             <br />

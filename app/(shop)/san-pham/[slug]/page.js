@@ -4,21 +4,71 @@ import { getProductBySlug, getRelatedProducts, formatPrice } from "@/data/produc
 import ProductPurchasePanel from "@/components/ProductPurchasePanel";
 import ProductGrid from "@/components/ProductGrid";
 import ProductGallery from "@/components/ProductGallery";
+import { SITE_URL } from "@/lib/siteUrl";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }) {
+  const product = await getProductBySlug(params.slug);
+  if (!product) return {};
+
+  const title = `${product.name} — Giá ${formatPrice(product.price)}`;
+  const description = product.specs?.length
+    ? product.specs.slice(0, 4).map(([label, value]) => `${label}: ${value}`).join(" · ")
+    : `${product.name} chính hãng, giao COD toàn quốc.`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `${SITE_URL}/san-pham/${product.slug}` },
+    openGraph: {
+      title,
+      description,
+      url: `${SITE_URL}/san-pham/${product.slug}`,
+      type: "website",
+      images: product.imageUrl ? [{ url: product.imageUrl }] : undefined,
+    },
+  };
+}
 
 export default async function ProductPage({ params }) {
   const product = await getProductBySlug(params.slug);
   if (!product) return notFound();
 
-  const related = await getRelatedProducts(product.slug);
+  const related = await getRelatedProducts(product);
   const discount = product.oldPrice
     ? Math.round(100 - (product.price / product.oldPrice) * 100)
     : null;
   const outOfStock = (product.stock ?? 0) <= 0;
 
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    sku: product.code,
+    image: product.images?.length ? product.images : undefined,
+    description: product.specs?.length
+      ? product.specs.map(([label, value]) => `${label}: ${value}`).join(" · ")
+      : product.name,
+    brand: product.brand ? { "@type": "Brand", name: product.brand } : undefined,
+    offers: {
+      "@type": "Offer",
+      url: `${SITE_URL}/san-pham/${product.slug}`,
+      priceCurrency: "VND",
+      price: product.price,
+      availability: outOfStock
+        ? "https://schema.org/OutOfStock"
+        : "https://schema.org/InStock",
+    },
+  };
+
   return (
     <main>
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
       <div className="breadcrumb">
         <Link href="/">Trang chủ</Link> / {product.category} / {product.name}
       </div>

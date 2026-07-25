@@ -30,7 +30,19 @@ export async function middleware(request) {
   );
 
   // Gọi getUser() (không phải chỉ đọc session) để Supabase tự làm mới token nếu sắp hết hạn.
-  await supabase.auth.getUser();
+  // Middleware này chạy trên MỌI trang (kể cả trang chủ), nên nếu Supabase chậm/không phản hồi
+  // (mất mạng, dự án Supabase bị tạm ngưng...) mà không giới hạn thời gian chờ, cả website sẽ
+  // treo và Vercel trả lỗi 504 MIDDLEWARE_INVOCATION_TIMEOUT — kể cả với khách không cần đăng
+  // nhập. Nên đặt giới hạn 5 giây: hết giờ thì bỏ qua bước làm mới token, vẫn cho trang chạy
+  // tiếp bình thường (khách chỉ bị đăng xuất sớm hơn dự kiến, còn hơn cả site sập).
+  try {
+    await Promise.race([
+      supabase.auth.getUser(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("supabase auth timeout")), 5000)),
+    ]);
+  } catch {
+    // Bỏ qua lỗi/timeout — cho request đi tiếp với response hiện có.
+  }
 
   return response;
 }

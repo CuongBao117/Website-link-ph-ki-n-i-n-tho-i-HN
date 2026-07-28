@@ -1,9 +1,21 @@
 import Link from "next/link";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import GhepAnhZaloBatch from "@/components/GhepAnhZaloBatch";
 
 export const dynamic = "force-dynamic";
 
-export default function GhepAnhZaloPage() {
+export default async function GhepAnhZaloPage() {
+  const [{ data: groups }, { data: categories }] = await Promise.all([
+    supabaseAdmin.from("category_groups").select("*").order("display_order"),
+    supabaseAdmin.from("categories").select("*").order("display_order"),
+  ]);
+
+  const categoryGroups = (groups || []).map((g) => ({
+    slug: g.slug,
+    name: g.name,
+    categories: (categories || []).filter((c) => c.group_slug === g.slug),
+  }));
+
   return (
     <main>
       <div className="section-head">
@@ -39,7 +51,7 @@ export default function GhepAnhZaloPage() {
         </p>
       </div>
 
-      <GhepAnhZaloBatch />
+      <GhepAnhZaloBatch categoryGroups={categoryGroups} />
     </main>
   );
 }

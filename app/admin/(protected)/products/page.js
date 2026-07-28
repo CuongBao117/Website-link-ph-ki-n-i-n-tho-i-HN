@@ -110,6 +110,9 @@ export default async function AdminProductsPage({ searchParams }) {
         <Link href="/admin/products/nhap-zalo" className="cart-remove" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
           Nhập từ bài đăng Zalo
         </Link>
+        <Link href="/admin/products/ghep-anh-zalo" className="cart-remove" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
+          Ghép ảnh từ ảnh chụp màn hình Zalo
+        </Link>
       </div>
 
       <form method="GET" className="admin-filter-bar">

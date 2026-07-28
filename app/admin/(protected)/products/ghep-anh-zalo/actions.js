@@ -6,9 +6,11 @@ import { ocrImageText } from "@/lib/ocr";
 
 const MATCH_LIMIT = 5;
 
-// Các dòng chữ kiểu giao diện Zalo (giờ đăng, nút Thích/Bình luận/Chia sẻ...) hay lẫn vào kết
-// quả OCR — loại trước để không làm nhiễu bước tìm dòng tên sản phẩm.
-const NOISE_LINE = /^(thích|bình luận|chia sẻ|xem thêm|trả lời|phút trước|giờ trước|ngày trước|tuần trước|\d+\s*(phút|giờ|ngày|tuần))/i;
+// Các dòng chữ kiểu giao diện Zalo (giờ đăng, nút Thích/Bình luận/Chia sẻ, đồng hồ ở thanh trạng
+// thái điện thoại...) hay lẫn vào kết quả OCR — loại trước để không làm nhiễu bước tìm dòng tên
+// sản phẩm. Ảnh chụp toàn màn hình kiểu "Zalo Story" còn dính thêm giờ hệ thống (VD "20:54") ở
+// thanh trạng thái phía trên cùng.
+const NOISE_LINE = /^(thích|bình luận|chia sẻ|xem thêm|trả lời|phút trước|giờ trước|ngày trước|tuần trước|\d+\s*(phút|giờ|ngày|tuần)|\d{1,2}[:.]\d{2}(\s?(am|pm|sa|ch))?$)/i;
 
 // Từ toàn bộ chữ OCR đọc được trong 1 ảnh chụp màn hình (lẫn cả tên người đăng, giờ đăng, chữ
 // nút bấm...), đoán dòng nào nhiều khả năng là TÊN sản phẩm nhất: bỏ các dòng rác đã biết, dòng

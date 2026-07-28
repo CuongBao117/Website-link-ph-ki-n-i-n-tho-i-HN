@@ -1,8 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { matchScreenshotText, attachPhotosToProduct } from "@/app/admin/(protected)/products/ghep-anh-zalo/actions";
-import { searchProducts } from "@/app/admin/(protected)/products/gan-anh/actions";
+import { matchScreenshotText } from "@/app/admin/(protected)/products/ghep-anh-zalo/actions";
+import {
+  searchProducts,
+  attachImageToProduct,
+  createProductWithImage,
+} from "@/app/admin/(protected)/products/gan-anh/actions";
+import PriceInput from "@/components/PriceInput";
 
 const AUTO_SELECT_THRESHOLD = 0.3; // độ khớp pg_trgm (0..1) — trên ngưỡng này tự chọn sẵn, dưới thì để trống bắt xem tay
 
@@ -24,12 +29,15 @@ function buildGroups(screenshotFiles, originalFiles) {
     screenshot: shot,
     originals: [],
     ocr: null, // { text, nameCandidate, candidates } sau khi chạy OCR
+    ocrPrice: null, // giá đọc được từ caption (nếu có)
     ocrError: null,
     selectedSlug: "",
     selectedName: "",
     selectedPrice: null,
     manualQuery: "",
     manualResults: [],
+    showCreateForm: false,
+    createDraft: null, // { name, price, category, categoryCode } khi chọn "tạo sản phẩm mới"
     skip: false,
   }));
 
@@ -46,7 +54,7 @@ function buildGroups(screenshotFiles, originalFiles) {
   return { groups, orphanOriginals };
 }
 
-export default function GhepAnhZaloBatch() {
+export default function GhepAnhZaloBatch({ categoryGroups = [] }) {
   const [screenshotFiles, setScreenshotFiles] = useState([]);
   const [originalFiles, setOriginalFiles] = useState([]);
   const [groups, setGroups] = useState(null);
@@ -87,9 +95,10 @@ export default function GhepAnhZaloBatch() {
           const autoSelect = best && best.score >= AUTO_SELECT_THRESHOLD;
           updateGroup(g.key, {
             ocr: { text: res.text, nameCandidate: res.nameCandidate, candidates: res.candidates || [] },
+            ocrPrice: res.ocrPrice ?? null,
             selectedSlug: autoSelect ? best.slug : "",
             selectedName: autoSelect ? best.name : "",
-            selectedPrice: autoSelect ? best.price : null,
+            selectedPrice: autoSelect ? res.ocrPrice ?? best.price : null,
           });
         } else {
           updateGroup(g.key, { ocrError: res.error || "Lỗi OCR không rõ nguyên nhân" });
@@ -114,32 +123,115 @@ export default function GhepAnhZaloBatch() {
   }
 
   function selectProduct(key, product) {
-    updateGroup(key, {
-      selectedSlug: product.slug,
-      selectedName: product.name,
-      selectedPrice: product.price,
-      manualQuery: "",
-      manualResults: [],
+    setGroups((prev) =>
+      prev.map((g) =>
+        g.key === key
+          ? {
+              ...g,
+              selectedSlug: product.slug,
+              selectedName: product.name,
+              selectedPrice: g.ocrPrice ?? product.price,
+              manualQuery: "",
+              manualResults: [],
+              showCreateForm: false,
+              createDraft: null,
+            }
+          : g
+      )
+    );
+  }
+
+  function startCreateDraft(key) {
+    setGroups((prev) =>
+      prev.map((g) =>
+        g.key === key
+          ? {
+              ...g,
+              showCreateForm: true,
+              selectedSlug: "",
+              selectedName: "",
+              selectedPrice: null,
+            }
+          : g
+      )
+    );
+  }
+
+  function submitCreateDraft(g, form) {
+    const categorySelect = form.elements.category;
+    const selectedOption = categorySelect.selectedOptions?.[0];
+    updateGroup(g.key, {
+      showCreateForm: false,
+      createDraft: {
+        name: form.elements.name.value,
+        price: form.elements.price.value,
+        category: categorySelect.value,
+        categoryCode: selectedOption?.dataset?.code || "SP",
+        categoryName: selectedOption?.textContent || categorySelect.value,
+      },
     });
   }
 
-  const readyGroups = (groups || []).filter((g) => !g.skip && g.selectedSlug);
+  const readyGroups = (groups || []).filter((g) => !g.skip && (g.selectedSlug || g.createDraft));
 
+  // Tải TỪNG ảnh 1 request riêng (không gộp nhiều ảnh vào 1 lần gửi) — 1 sản phẩm có thể có vài
+  // ảnh gốc vài MB mỗi cái, gộp chung dễ vượt giới hạn dung lượng Server Action (25MB) và tải lên
+  // thất bại toàn bộ. Tái dùng đúng attachImageToProduct/createProductWithImage (1 ảnh/lần) đã
+  // chạy ổn định ở "Gán ảnh hàng loạt" thay vì viết lại logic tải ảnh riêng cho tool này.
   async function handleConfirmAll() {
     if (readyGroups.length === 0) return;
     setAttaching(true);
     const results = [];
 
     for (const g of readyGroups) {
-      const formData = new FormData();
-      formData.set("slug", g.selectedSlug);
-      g.originals.forEach((file) => formData.append("images", file));
+      const label = g.selectedName || g.createDraft?.name;
+      let targetSlug = g.selectedSlug || null;
+      let successCount = 0;
+      let lastError = null;
+      let remaining = g.originals;
+
       try {
-        const res = await attachPhotosToProduct(formData);
-        results.push({ name: g.selectedName, success: res.success, error: res.error, count: g.originals.length });
+        if (!targetSlug && g.createDraft) {
+          const [firstFile, ...rest] = g.originals;
+          remaining = rest;
+          const formData = new FormData();
+          formData.set("name", g.createDraft.name);
+          formData.set("price", g.createDraft.price);
+          formData.set("category", g.createDraft.category);
+          formData.set("categoryCode", g.createDraft.categoryCode);
+          if (firstFile) formData.set("image", firstFile);
+          const res = await createProductWithImage(formData);
+          if (res.success) {
+            targetSlug = res.slug;
+            if (firstFile) successCount++;
+          } else {
+            lastError = res.error;
+          }
+        }
+
+        if (targetSlug) {
+          for (const file of remaining) {
+            const formData = new FormData();
+            formData.set("slug", targetSlug);
+            formData.set("image", file);
+            if (g.selectedSlug && g.selectedPrice !== null && g.selectedPrice !== "") {
+              formData.set("price", g.selectedPrice);
+            }
+            const res = await attachImageToProduct(formData);
+            if (res.success) successCount++;
+            else lastError = res.error || lastError;
+          }
+        }
       } catch (err) {
-        results.push({ name: g.selectedName, success: false, error: err?.message || "không rõ nguyên nhân" });
+        lastError = err?.message || "không rõ nguyên nhân";
       }
+
+      results.push({
+        name: label,
+        success: successCount === g.originals.length && !lastError,
+        error: lastError,
+        count: successCount,
+      });
     }
 
     setAttachLog(results);
@@ -256,7 +348,7 @@ export default function GhepAnhZaloBatch() {
               <tr>
                 <th>Ảnh chụp màn hình</th>
                 <th>Chữ đọc được</th>
-                <th>Khớp với sản phẩm</th>
+                <th>Khớp với sản phẩm / Giá</th>
                 <th>Ảnh sẽ gắn ({groups.reduce((n, g) => n + g.originals.length, 0)} ảnh gốc)</th>
                 <th></th>
               </tr>
@@ -278,12 +370,19 @@ export default function GhepAnhZaloBatch() {
                       {g.ocrError ? (
                         <span style={{ color: "#B0503A" }}>{g.ocrError}</span>
                       ) : g.ocr ? (
-                        g.ocr.nameCandidate || <i style={{ color: "var(--ink-soft)" }}>Không đọc được dòng nào</i>
+                        <>
+                          {g.ocr.nameCandidate || <i style={{ color: "var(--ink-soft)" }}>Không đọc được dòng nào</i>}
+                          {g.ocrPrice !== null && (
+                            <div style={{ marginTop: 4, color: "var(--ink-soft)" }}>
+                              Giá đọc được: <b>{formatPrice(g.ocrPrice)}</b>
+                            </div>
+                          )}
+                        </>
                       ) : (
                         <span style={{ color: "var(--ink-soft)" }}>Chưa chạy OCR</span>
                       )}
                     </td>
-                    <td style={{ minWidth: 240 }}>
+                    <td style={{ minWidth: 260 }}>
                       {g.ocr && (
                         <div style={{ marginBottom: 8 }}>
                           {(g.ocr.candidates || []).slice(0, 3).map((c) => (
@@ -312,25 +411,27 @@ export default function GhepAnhZaloBatch() {
                           ))}
                           {lowConfidence && (
                             <div style={{ fontSize: 11.5, color: "#B0503A", marginBottom: 4 }}>
-                              Độ khớp thấp — kiểm tra kỹ hoặc tìm tay bên dưới.
+                              Độ khớp thấp — kiểm tra kỹ hoặc tìm tay/tạo mới bên dưới.
                             </div>
                           )}
                         </div>
                       )}
 
-                      <input
-                        type="text"
-                        placeholder="Tìm tay theo tên sản phẩm..."
-                        value={g.manualQuery}
-                        onChange={(e) => handleManualSearch(g.key, e.target.value)}
-                        style={{
-                          width: "100%",
-                          border: "1px solid var(--line)",
-                          borderRadius: "var(--radius)",
-                          padding: "6px 8px",
-                          fontSize: 12.5,
-                        }}
-                      />
+                      {!g.createDraft && (
+                        <input
+                          type="text"
+                          placeholder="Tìm tay theo tên sản phẩm..."
+                          value={g.manualQuery}
+                          onChange={(e) => handleManualSearch(g.key, e.target.value)}
+                          style={{
+                            width: "100%",
+                            border: "1px solid var(--line)",
+                            borderRadius: "var(--radius)",
+                            padding: "6px 8px",
+                            fontSize: 12.5,
+                          }}
+                        />
+                      )}
                       {g.manualResults.length > 0 && (
                         <div className="gan-anh-results" style={{ marginTop: 6 }}>
                           {g.manualResults.map((p) => (
@@ -352,8 +453,87 @@ export default function GhepAnhZaloBatch() {
                       )}
 
                       {g.selectedSlug && (
-                        <div style={{ marginTop: 6, fontSize: 12.5, fontWeight: 600, color: "var(--teal)" }}>
-                          ✓ Đã chọn: {g.selectedName}
+                        <div style={{ marginTop: 8 }}>
+                          <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--teal)", marginBottom: 6 }}>
+                            ✓ Đã chọn: {g.selectedName}
+                          </div>
+                          <label style={{ fontSize: 11, color: "var(--ink-soft)", display: "block", marginBottom: 4 }}>
+                            Giá bán (đ) — sửa lại nếu cần
+                          </label>
+                          <PriceInput
+                            value={g.selectedPrice ?? ""}
+                            onChange={(digits) => updateGroup(g.key, { selectedPrice: digits ? Number(digits) : null })}
+                            inputStyle={{ width: 140, fontSize: 12.5, padding: "6px 30px 6px 8px" }}
+                          />
+                        </div>
+                      )}
+
+                      {!g.selectedSlug && !g.showCreateForm && !g.createDraft && (
+                        <button
+                          type="button"
+                          className="cart-remove"
+                          style={{ marginTop: 8, fontSize: 12 }}
+                          onClick={() => startCreateDraft(g.key)}
+                        >
+                          Không khớp — tạo sản phẩm mới
+                        </button>
+                      )}
+
+                      {g.showCreateForm && (
+                        <form
+                          className="gan-anh-create-form"
+                          style={{ marginTop: 8 }}
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            submitCreateDraft(g, e.currentTarget);
+                          }}
+                        >
+                          <label>Tên sản phẩm</label>
+                          <input name="name" defaultValue={g.ocr?.nameCandidate || ""} required />
+
+                          <label>Giá bán (đ)</label>
+                          <PriceInput name="price" defaultValue={g.ocrPrice ?? ""} required placeholder="115.000" />
+
+                          <label>Danh mục</label>
+                          <select name="category" required>
+                            {categoryGroups.map((cg) => (
+                              <optgroup key={cg.slug} label={cg.name}>
+                                {cg.categories.map((c) => (
+                                  <option key={c.slug} value={c.slug} data-code={c.code}>
+                                    {c.name}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ))}
+                          </select>
+
+                          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                            <button type="submit" className="btn-primary">
+                              Xem lại
+                            </button>
+                            <button type="button" className="cart-remove" onClick={() => updateGroup(g.key, { showCreateForm: false })}>
+                              Huỷ
+                            </button>
+                          </div>
+                        </form>
+                      )}
+
+                      {g.createDraft && (
+                        <div className="gan-anh-confirm" style={{ marginTop: 8 }}>
+                          <div className="gan-anh-confirm-name" style={{ fontSize: 13 }}>
+                            Sẽ tạo mới: {g.createDraft.name}
+                          </div>
+                          <p style={{ fontSize: 12, margin: "0 0 8px" }}>
+                            {formatPrice(g.createDraft.price)} · {g.createDraft.categoryName}
+                          </p>
+                          <button
+                            type="button"
+                            className="cart-remove"
+                            style={{ fontSize: 12 }}
+                            onClick={() => updateGroup(g.key, { createDraft: null, showCreateForm: true })}
+                          >
+                            Sửa lại
+                          </button>
                         </div>
                       )}
                     </td>
@@ -386,7 +566,7 @@ export default function GhepAnhZaloBatch() {
 
           <div style={{ marginTop: 16 }}>
             <button type="button" className="btn-primary" onClick={handleConfirmAll} disabled={attaching || readyGroups.length === 0}>
-              {attaching ? "Đang gắn ảnh..." : `Xác nhận gắn ảnh cho ${readyGroups.length} sản phẩm`}
+              {attaching ? "Đang xử lý..." : `Xác nhận cho ${readyGroups.length} sản phẩm`}
             </button>
           </div>
 

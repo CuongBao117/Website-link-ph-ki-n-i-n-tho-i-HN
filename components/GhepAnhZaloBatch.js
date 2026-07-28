@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { matchScreenshotText } from "@/app/admin/(protected)/products/ghep-anh-zalo/actions";
 import {
-  matchScreenshotText,
-  attachPhotosToProduct,
-  createProductWithPhotos,
-} from "@/app/admin/(protected)/products/ghep-anh-zalo/actions";
-import { searchProducts } from "@/app/admin/(protected)/products/gan-anh/actions";
+  searchProducts,
+  attachImageToProduct,
+  createProductWithImage,
+} from "@/app/admin/(protected)/products/gan-anh/actions";
 import PriceInput from "@/components/PriceInput";
 
 const AUTO_SELECT_THRESHOLD = 0.3; // độ khớp pg_trgm (0..1) — trên ngưỡng này tự chọn sẵn, dưới thì để trống bắt xem tay
@@ -174,33 +174,64 @@ export default function GhepAnhZaloBatch({ categoryGroups = [] }) {
 
   const readyGroups = (groups || []).filter((g) => !g.skip && (g.selectedSlug || g.createDraft));
 
+  // Tải TỪNG ảnh 1 request riêng (không gộp nhiều ảnh vào 1 lần gửi) — 1 sản phẩm có thể có vài
+  // ảnh gốc vài MB mỗi cái, gộp chung dễ vượt giới hạn dung lượng Server Action (25MB) và tải lên
+  // thất bại toàn bộ. Tái dùng đúng attachImageToProduct/createProductWithImage (1 ảnh/lần) đã
+  // chạy ổn định ở "Gán ảnh hàng loạt" thay vì viết lại logic tải ảnh riêng cho tool này.
   async function handleConfirmAll() {
     if (readyGroups.length === 0) return;
     setAttaching(true);
     const results = [];
 
     for (const g of readyGroups) {
+      const label = g.selectedName || g.createDraft?.name;
+      let targetSlug = g.selectedSlug || null;
+      let successCount = 0;
+      let lastError = null;
+      let remaining = g.originals;
+
       try {
-        if (g.selectedSlug) {
-          const formData = new FormData();
-          formData.set("slug", g.selectedSlug);
-          if (g.selectedPrice !== null && g.selectedPrice !== "") formData.set("price", g.selectedPrice);
-          g.originals.forEach((file) => formData.append("images", file));
-          const res = await attachPhotosToProduct(formData);
-          results.push({ name: g.selectedName, success: res.success, error: res.error, count: g.originals.length });
-        } else if (g.createDraft) {
+        if (!targetSlug && g.createDraft) {
+          const [firstFile, ...rest] = g.originals;
+          remaining = rest;
           const formData = new FormData();
           formData.set("name", g.createDraft.name);
           formData.set("price", g.createDraft.price);
           formData.set("category", g.createDraft.category);
           formData.set("categoryCode", g.createDraft.categoryCode);
-          g.originals.forEach((file) => formData.append("images", file));
-          const res = await createProductWithPhotos(formData);
-          results.push({ name: g.createDraft.name, success: res.success, error: res.error, count: g.originals.length });
+          if (firstFile) formData.set("image", firstFile);
+          const res = await createProductWithImage(formData);
+          if (res.success) {
+            targetSlug = res.slug;
+            if (firstFile) successCount++;
+          } else {
+            lastError = res.error;
+          }
+        }
+
+        if (targetSlug) {
+          for (const file of remaining) {
+            const formData = new FormData();
+            formData.set("slug", targetSlug);
+            formData.set("image", file);
+            if (g.selectedSlug && g.selectedPrice !== null && g.selectedPrice !== "") {
+              formData.set("price", g.selectedPrice);
+            }
+            const res = await attachImageToProduct(formData);
+            if (res.success) successCount++;
+            else lastError = res.error || lastError;
+          }
         }
       } catch (err) {
-        results.push({ name: g.selectedName || g.createDraft?.name, success: false, error: err?.message || "không rõ nguyên nhân" });
+        lastError = err?.message || "không rõ nguyên nhân";
       }
+
+      results.push({
+        name: label,
+        success: successCount === g.originals.length && !lastError,
+        error: lastError,
+        count: successCount,
+      });
     }
 
     setAttachLog(results);

@@ -1,10 +1,8 @@
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/adminAuth";
 import { ocrImageText } from "@/lib/ocr";
-import { slugify } from "@/lib/slugify";
 
 const MATCH_LIMIT = 5;
 
@@ -64,6 +62,11 @@ function pickPriceCandidate(text) {
 
 // Đọc chữ (OCR) trong 1 ảnh chụp màn hình bài đăng Zalo, đoán tên + giá sản phẩm, rồi tìm các
 // sản phẩm gần đúng nhất đã có sẵn trong database (so khớp mờ theo pg_trgm, xem migration_015).
+//
+// Việc tải ảnh lên/gắn vào sản phẩm/tạo sản phẩm mới KHÔNG xử lý ở file này — dùng thẳng
+// attachImageToProduct/createProductWithImage đã có sẵn ở gan-anh/actions.js, gọi riêng 1 ảnh/lần
+// từ phía client (xem GhepAnhZaloBatch.js) để mỗi sản phẩm nhiều ảnh không bị gộp chung 1 request
+// rồi vượt giới hạn dung lượng của Server Action (25MB, xem next.config.js).
 export async function matchScreenshotText(formData) {
   const authError = requireAdmin();
   if (authError) return authError;
@@ -97,144 +100,4 @@ export async function matchScreenshotText(formData) {
   }
 
   return { success: true, text, nameCandidate, ocrPrice, candidates: data || [] };
-}
-
-async function uploadOneImage(file, slugForPath) {
-  const ext = (file.name?.split(".").pop() || "jpg").toLowerCase();
-  const path = `${slugForPath}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
-
-  const { error } = await supabaseAdmin.storage
-    .from("product-images")
-    .upload(path, file, { upsert: true, contentType: file.type || undefined });
-
-  if (error) {
-    console.error("Lỗi tải ảnh lên:", error.message);
-    return null;
-  }
-
-  const { data } = supabaseAdmin.storage.from("product-images").getPublicUrl(path);
-  return data?.publicUrl || null;
-}
-
-// Gắn NHIỀU ảnh (nhiều góc chụp cùng 1 sản phẩm) vào 1 sản phẩm ĐÃ CÓ SẴN trong 1 lần —
-// thêm vào cuối mảng ảnh hiện có, không xoá ảnh cũ (giống nguyên tắc của "Gán ảnh hàng loạt").
-// Nếu có kèm "price" hợp lệ (đọc được từ caption Zalo, khác giá hiện tại) thì cập nhật luôn giá.
-export async function attachPhotosToProduct(formData) {
-  const authError = requireAdmin();
-  if (authError) return authError;
-
-  const slug = formData.get("slug")?.trim();
-  const files = formData.getAll("images").filter((f) => typeof f === "object" && f.size > 0);
-  const priceRaw = formData.get("price");
-  if (!slug || files.length === 0) {
-    return { success: false, error: "Thiếu sản phẩm hoặc ảnh." };
-  }
-
-  const { data: product, error: fetchError } = await supabaseAdmin
-    .from("products")
-    .select("images, image_url")
-    .eq("slug", slug)
-    .maybeSingle();
-
-  if (fetchError || !product) {
-    return { success: false, error: fetchError?.message || "Không tìm thấy sản phẩm." };
-  }
-
-  const uploadedUrls = [];
-  for (const file of files) {
-    const url = await uploadOneImage(file, slug);
-    if (url) uploadedUrls.push(url);
-  }
-
-  if (uploadedUrls.length === 0) {
-    return { success: false, error: "Tải ảnh lên thất bại, thử lại." };
-  }
-
-  const currentImages = Array.isArray(product.images) && product.images.length > 0
-    ? product.images
-    : product.image_url
-    ? [product.image_url]
-    : [];
-  const newImages = [...currentImages, ...uploadedUrls];
-
-  const updatePayload = { images: newImages, image_url: newImages[0] };
-  const newPrice = Number(priceRaw);
-  if (priceRaw !== null && priceRaw !== "" && Number.isFinite(newPrice) && newPrice > 0) {
-    updatePayload.price = newPrice;
-  }
-
-  const { error: updateError } = await supabaseAdmin
-    .from("products")
-    .update(updatePayload)
-    .eq("slug", slug);
-
-  if (updateError) {
-    return { success: false, error: updateError.message };
-  }
-
-  revalidatePath("/admin/products");
-  revalidatePath("/");
-  revalidatePath(`/san-pham/${slug}`);
-  return { success: true, uploadedCount: uploadedUrls.length };
-}
-
-// Tạo sản phẩm MỚI (không khớp sản phẩm nào có sẵn) kèm luôn (các) ảnh gốc đã ghép nhóm —
-// dùng khi OCR + so khớp mờ không tìm ra sản phẩm đã có nào đủ tin cậy.
-export async function createProductWithPhotos(formData) {
-  const authError = requireAdmin();
-  if (authError) return authError;
-
-  const name = formData.get("name")?.trim();
-  const priceRaw = formData.get("price");
-  const category = formData.get("category")?.trim();
-  const categoryCode = formData.get("categoryCode")?.trim() || "SP";
-  const files = formData.getAll("images").filter((f) => typeof f === "object" && f.size > 0);
-
-  const price = Number(priceRaw);
-  if (!name || !Number.isFinite(price) || price <= 0 || !category) {
-    return { success: false, error: "Thiếu tên, giá bán hợp lệ, hoặc danh mục." };
-  }
-
-  let slug = slugify(name);
-  if (!slug) {
-    return { success: false, error: "Không tạo được mã đường dẫn từ tên sản phẩm." };
-  }
-
-  const { data: existing } = await supabaseAdmin.from("products").select("slug").eq("slug", slug).maybeSingle();
-  if (existing) {
-    slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
-  }
-
-  const code = `${categoryCode}-${Date.now().toString(36).toUpperCase()}`;
-
-  const images = [];
-  for (const file of files) {
-    const url = await uploadOneImage(file, slug);
-    if (url) images.push(url);
-  }
-
-  const { error } = await supabaseAdmin.from("products").insert({
-    slug,
-    code,
-    name,
-    price,
-    old_price: null,
-    stock: 9999,
-    category,
-    brand: null,
-    variants: [],
-    default_variant: null,
-    specs: [],
-    images,
-    image_url: images[0] || null,
-  });
-
-  if (error) {
-    console.error("Lỗi tạo sản phẩm mới:", error.message);
-    return { success: false, error: error.message };
-  }
-
-  revalidatePath("/admin/products");
-  revalidatePath("/");
-  return { success: true, slug };
 }

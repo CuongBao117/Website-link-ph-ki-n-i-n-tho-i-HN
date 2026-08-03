@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createWorker } from "tesseract.js";
 import {
-  ocrScreenshot,
   matchProductByName,
   attachPhotosToProduct,
   createProductWithPhotos,
@@ -11,6 +11,152 @@ import { searchProducts } from "@/app/admin/(protected)/products/gan-anh/actions
 import PriceInput from "@/components/PriceInput";
 
 const AUTO_MATCH_THRESHOLD = 0.3; // độ khớp pg_trgm (0..1) — trên ngưỡng này coi là ĐÃ có sẵn, dưới thì coi là sản phẩm MỚI
+
+// Đọc chữ (OCR) chạy THẲNG trong trình duyệt — trước đây chạy qua Server Action trên serverless
+// function, mỗi ảnh phải khởi tạo lại từ đầu 1 worker Tesseract (tải lại dữ liệu ngôn ngữ ~vài MB)
+// rồi mới đọc, lặp lại tuần tự cho từng ảnh -> rất chậm và hay bị timeout/đứng khi lô ảnh dài.
+// Giờ dùng vài worker khởi tạo 1 LẦN DUY NHẤT, giữ lại dùng cho cả phiên làm việc.
+const OCR_WORKER_COUNT = 3; // vài worker chạy song song — giới hạn vừa phải, tránh ngốn CPU trình duyệt
+const OCR_TIMEOUT_MS = 25000; // 1 ảnh đọc quá lâu (ảnh lỗi/quá nặng/mạng chậm) thì bỏ qua, không treo cả lô
+const OCR_MAX_DIMENSION = 1000; // thu nhỏ ảnh trước khi đọc chữ cho nhanh hơn — chỉ cần đọc rõ caption, không cần giữ nguyên độ phân giải ảnh gốc
+
+let ocrWorkerPoolPromise = null;
+
+function getOcrWorkerPool() {
+  if (!ocrWorkerPoolPromise) {
+    ocrWorkerPoolPromise = Promise.all(Array.from({ length: OCR_WORKER_COUNT }, () => createWorker("vie")));
+  }
+  return ocrWorkerPoolPromise;
+}
+
+function withTimeout(promise, ms, message) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+// Thu nhỏ ảnh trước khi đưa vào OCR — ảnh chụp màn hình điện thoại thường rất to (2-4MB, cả
+// nghìn px chiều ngang) trong khi engine chỉ cần đọc được chữ trong caption. Ảnh GỐC (đầy đủ độ
+// phân giải) vẫn được giữ nguyên để gắn vào sản phẩm ở bước sau, resize này chỉ dùng riêng cho OCR.
+async function resizeForOcr(file) {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, OCR_MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+    if (scale >= 1) {
+      bitmap.close?.();
+      return file;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+    return blob || file;
+  } catch {
+    return file; // Không resize được (API lạ/trình duyệt cũ...) thì đọc thẳng ảnh gốc, vẫn đúng chỉ chậm hơn.
+  }
+}
+
+// Các dòng chữ kiểu giao diện điện thoại/Zalo (giờ đăng, đồng hồ trạng thái, pin, nút Thích/Bình
+// luận/Chia sẻ...) hay lẫn vào kết quả OCR — loại trước để không làm nhiễu bước đoán tên sản phẩm.
+const NOISE_LINE =
+  /^(thích|bình luận|chia sẻ|xem thêm|trả lời|phút trước|giờ trước|ngày trước|tuần trước|\d+\s*(phút|giờ|ngày|tuần)|\d{1,2}[:.,]\d{2}(\s?(am|pm))?|\.{2,}|[×xX]|\d{1,3}\s?%)$/i;
+
+// Dòng kiểu "Sỉ 90k" / "Giá: 95.000đ" — không phải tên sản phẩm, tách riêng ra để đọc GIÁ.
+const PRICE_LINE = /^(s[ỉi]|gi[áa])\b/i;
+
+// Bỏ icon/emoji ở đầu-cuối dòng (caption Zalo hay có "✨✨", "💵"...) để tên/giá đọc ra không dính rác.
+function cleanLine(line) {
+  return line
+    .replace(/\p{Extended_Pictographic}/gu, "")
+    .replace(/^[\s•*\-–✅❌:]+|[\s•*\-–✅❌]+$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+// Bóc số + "k" ra khỏi chuỗi giá kiểu Zalo: "Sỉ 90k" -> 90000, "125.000đ" -> 125000.
+function parsePriceValue(raw) {
+  const s = String(raw || "").trim().toLowerCase();
+  const hasK = /k\b/.test(s) || s.endsWith("k");
+  const numMatch = s.replace(/[đdvnđ]/g, "").match(/[\d.,]+/);
+  if (!numMatch) return null;
+  let numStr = numMatch[0];
+  numStr = hasK ? numStr.replace(/,/g, ".") : numStr.replace(/[.,]/g, "");
+  const n = parseFloat(numStr);
+  if (!Number.isFinite(n)) return null;
+  return Math.round(hasK ? n * 1000 : n);
+}
+
+// Từ toàn bộ chữ OCR đọc được trong 1 ảnh chụp màn hình (lẫn cả tên người đăng, giờ đăng, chữ nút
+// bấm, badge in trên ảnh...), tách ra TÊN sản phẩm (dòng dài nhất trong vài dòng đầu, sau khi bỏ
+// dòng rác/dòng giá/dòng quá ngắn) và GIÁ bán (ưu tiên dòng có "Sỉ"/"Giá", không có thì quét số+k
+// đầu tiên trong toàn bộ chữ).
+function pickNameAndPrice(text) {
+  const cleanedLines = String(text || "")
+    .split("\n")
+    .map((l) => cleanLine(l))
+    .filter(Boolean);
+
+  const nameLines = cleanedLines.filter((l) => l.length >= 4 && !NOISE_LINE.test(l) && !PRICE_LINE.test(l));
+  const nameCandidate = nameLines.length ? nameLines.slice(0, 6).sort((a, b) => b.length - a.length)[0] : "";
+
+  let priceCandidate = null;
+  for (const line of cleanedLines) {
+    const m = line.match(/s[ỉi]\s*:?\s*([\d.,]+\s*k?)/iu) || line.match(/gi[áa]\s*:?\s*([\d.,]+\s*k?)/iu);
+    if (m) {
+      priceCandidate = parsePriceValue(m[1]);
+      if (priceCandidate) break;
+    }
+  }
+  if (priceCandidate === null) {
+    for (const line of cleanedLines) {
+      const m = line.match(/([\d.,]+\s*k)\b/iu);
+      if (m) {
+        priceCandidate = parsePriceValue(m[1]);
+        if (priceCandidate) break;
+      }
+    }
+  }
+
+  return { nameCandidate, priceCandidate };
+}
+
+// Chạy OCR cho CẢ LÔ ảnh bằng vài worker dùng chung (xem getOcrWorkerPool) — mỗi worker rảnh sẽ
+// tự lấy ảnh tiếp theo trong hàng đợi (round-robin đơn giản qua biến đếm dùng chung), nhanh hơn
+// hẳn so với xử lý tuần tự từng ảnh một. 1 ảnh lỗi/quá lâu chỉ báo lỗi cho riêng ảnh đó.
+async function ocrAllFiles(files, onProgress) {
+  const workers = await getOcrWorkerPool();
+  const results = new Array(files.length);
+  let nextIndex = 0;
+  let doneCount = 0;
+
+  async function runWithWorker(worker) {
+    while (nextIndex < files.length) {
+      const i = nextIndex++;
+      const file = files[i];
+      try {
+        const ocrInput = await resizeForOcr(file);
+        const { data } = await withTimeout(
+          worker.recognize(ocrInput),
+          OCR_TIMEOUT_MS,
+          "Quá thời gian đọc chữ (ảnh quá nặng hoặc mạng chậm) — thử lại riêng ảnh này."
+        );
+        const { nameCandidate, priceCandidate } = pickNameAndPrice(data.text || "");
+        results[i] = { file, nameCandidate, priceCandidate, ocrError: null };
+      } catch (err) {
+        results[i] = { file, nameCandidate: "", priceCandidate: null, ocrError: err?.message || "Lỗi đọc chữ không rõ nguyên nhân" };
+      }
+      doneCount++;
+      onProgress(doneCount, files.length);
+    }
+  }
+
+  await Promise.all(workers.map((w) => runWithWorker(w)));
+  return results;
+}
 
 function formatPrice(value) {
   if (value === null || value === undefined || value === "") return "";
@@ -70,11 +216,24 @@ export default function GhepAnhZaloBatch({ categoryGroups }) {
   const [groups, setGroups] = useState(null);
   const [ocrRunning, setOcrRunning] = useState(false);
   const [ocrProgress, setOcrProgress] = useState({ done: 0, total: 0 });
+  const [ocrFatalError, setOcrFatalError] = useState("");
   const [category, setCategory] = useState(categoryGroups?.[0]?.categories?.[0]?.slug || "");
   const [confirming, setConfirming] = useState(false);
   const [confirmLog, setConfirmLog] = useState([]);
 
   const categoryOption = categoryGroups?.flatMap((g) => g.categories).find((c) => c.slug === category);
+
+  // Rời khỏi trang thì giải phóng worker Testeract đang giữ (nếu có) — tránh worker (Web Worker +
+  // engine WASM đã tải) treo lại trong bộ nhớ khi admin không dùng công cụ này nữa.
+  useEffect(() => {
+    return () => {
+      if (ocrWorkerPoolPromise) {
+        const pool = ocrWorkerPoolPromise;
+        ocrWorkerPoolPromise = null;
+        pool.then((workers) => workers.forEach((w) => w.terminate()));
+      }
+    };
+  }, []);
 
   function handleFilesChange(e) {
     setFiles(Array.from(e.target.files || []));
@@ -110,25 +269,19 @@ export default function GhepAnhZaloBatch({ categoryGroups }) {
   async function handleRunOcr() {
     if (files.length === 0) return;
     setOcrRunning(true);
+    setOcrFatalError("");
     const sorted = [...files].sort((a, b) => a.lastModified - b.lastModified);
     setOcrProgress({ done: 0, total: sorted.length });
 
-    const items = [];
-    for (let i = 0; i < sorted.length; i++) {
-      const file = sorted[i];
-      const formData = new FormData();
-      formData.set("image", file);
-      try {
-        const res = await ocrScreenshot(formData);
-        if (res.success) {
-          items.push({ file, nameCandidate: res.nameCandidate, priceCandidate: res.priceCandidate, ocrError: null });
-        } else {
-          items.push({ file, nameCandidate: "", priceCandidate: null, ocrError: res.error || "Lỗi OCR không rõ nguyên nhân" });
-        }
-      } catch (err) {
-        items.push({ file, nameCandidate: "", priceCandidate: null, ocrError: err?.message || "Lỗi OCR không rõ nguyên nhân" });
-      }
-      setOcrProgress({ done: i + 1, total: sorted.length });
+    let items;
+    try {
+      items = await ocrAllFiles(sorted, (done, total) => setOcrProgress({ done, total }));
+    } catch (err) {
+      setOcrFatalError(
+        `Không khởi tạo được engine đọc chữ: ${err?.message || "không rõ nguyên nhân"} — kiểm tra lại kết nối mạng rồi thử lại.`
+      );
+      setOcrRunning(false);
+      return;
     }
 
     const built = buildGroupsFromOcr(items);
@@ -274,6 +427,7 @@ export default function GhepAnhZaloBatch({ categoryGroups }) {
           <button type="button" className="btn-primary" style={{ marginTop: 14 }} onClick={handleRunOcr} disabled={ocrRunning}>
             {ocrRunning ? `Đang đọc chữ ${ocrProgress.done}/${ocrProgress.total}...` : "Nhận diện chữ (OCR) & ghép nhóm →"}
           </button>
+          {ocrFatalError && <p style={{ color: "#B0503A", fontSize: 13.5, marginTop: 10 }}>{ocrFatalError}</p>}
         </div>
       )}
 

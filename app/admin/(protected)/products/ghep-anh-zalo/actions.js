@@ -4,30 +4,79 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/adminAuth";
 import { ocrImageText } from "@/lib/ocr";
+import { slugify } from "@/lib/slugify";
 
 const MATCH_LIMIT = 5;
 
-// Các dòng chữ kiểu giao diện Zalo (giờ đăng, nút Thích/Bình luận/Chia sẻ...) hay lẫn vào kết
-// quả OCR — loại trước để không làm nhiễu bước tìm dòng tên sản phẩm.
-const NOISE_LINE = /^(thích|bình luận|chia sẻ|xem thêm|trả lời|phút trước|giờ trước|ngày trước|tuần trước|\d+\s*(phút|giờ|ngày|tuần))/i;
+// Các dòng chữ kiểu giao diện điện thoại/Zalo (giờ đăng, đồng hồ trạng thái, pin, nút Thích/Bình
+// luận/Chia sẻ...) hay lẫn vào kết quả OCR — loại trước để không làm nhiễu bước đoán tên sản phẩm.
+const NOISE_LINE =
+  /^(thích|bình luận|chia sẻ|xem thêm|trả lời|phút trước|giờ trước|ngày trước|tuần trước|\d+\s*(phút|giờ|ngày|tuần)|\d{1,2}[:.,]\d{2}(\s?(am|pm))?|\.{2,}|[×xX]|\d{1,3}\s?%)$/i;
 
-// Từ toàn bộ chữ OCR đọc được trong 1 ảnh chụp màn hình (lẫn cả tên người đăng, giờ đăng, chữ
-// nút bấm...), đoán dòng nào nhiều khả năng là TÊN sản phẩm nhất: bỏ các dòng rác đã biết, dòng
-// quá ngắn, rồi lấy dòng DÀI NHẤT trong vài dòng đầu — caption tên sản phẩm thường dài hơn hẳn
-// chữ giao diện xung quanh.
-function pickNameCandidate(text) {
-  const lines = String(text || "")
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l.length >= 4 && !NOISE_LINE.test(l));
+// Dòng kiểu "Sỉ 90k" / "Giá: 95.000đ" — không phải tên sản phẩm, tách riêng ra để đọc GIÁ.
+const PRICE_LINE = /^(s[ỉi]|gi[áa])\b/i;
 
-  if (lines.length === 0) return "";
-  return lines.slice(0, 6).sort((a, b) => b.length - a.length)[0];
+// Bỏ icon/emoji ở đầu-cuối dòng (caption Zalo hay có "✨✨", "💵"...) để tên/giá đọc ra không dính rác.
+function cleanLine(line) {
+  return line
+    .replace(/\p{Extended_Pictographic}/gu, "")
+    .replace(/^[\s•*\-–✅❌:]+|[\s•*\-–✅❌]+$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
-// Đọc chữ (OCR) trong 1 ảnh chụp màn hình bài đăng Zalo, đoán tên sản phẩm, rồi tìm các sản
-// phẩm gần đúng nhất đã có sẵn trong database (so khớp mờ theo pg_trgm, xem migration_015).
-export async function matchScreenshotText(formData) {
+// Bóc số + "k" ra khỏi chuỗi giá kiểu Zalo: "Sỉ 90k" -> 90000, "125.000đ" -> 125000.
+function parsePriceValue(raw) {
+  const s = String(raw || "").trim().toLowerCase();
+  const hasK = /k\b/.test(s) || s.endsWith("k");
+  const numMatch = s.replace(/[đdvnđ]/g, "").match(/[\d.,]+/);
+  if (!numMatch) return null;
+  let numStr = numMatch[0];
+  numStr = hasK ? numStr.replace(/,/g, ".") : numStr.replace(/[.,]/g, "");
+  const n = parseFloat(numStr);
+  if (!Number.isFinite(n)) return null;
+  return Math.round(hasK ? n * 1000 : n);
+}
+
+// Từ toàn bộ chữ OCR đọc được trong 1 ảnh chụp màn hình (lẫn cả tên người đăng, giờ đăng, chữ
+// nút bấm, badge in trên ảnh...), tách ra:
+//  - TÊN sản phẩm: bỏ dòng rác/dòng giá/dòng quá ngắn, lấy dòng DÀI NHẤT trong vài dòng đầu —
+//    caption tên sản phẩm thường dài hơn hẳn chữ giao diện hay badge ngắn xung quanh.
+//  - GIÁ bán: ưu tiên dòng có "Sỉ"/"Giá", không có thì quét số+k đầu tiên trong toàn bộ chữ.
+function pickNameAndPrice(text) {
+  const cleanedLines = String(text || "")
+    .split("\n")
+    .map((l) => cleanLine(l))
+    .filter(Boolean);
+
+  const nameLines = cleanedLines.filter((l) => l.length >= 4 && !NOISE_LINE.test(l) && !PRICE_LINE.test(l));
+  const nameCandidate = nameLines.length ? nameLines.slice(0, 6).sort((a, b) => b.length - a.length)[0] : "";
+
+  let priceCandidate = null;
+  for (const line of cleanedLines) {
+    const m = line.match(/s[ỉi]\s*:?\s*([\d.,]+\s*k?)/iu) || line.match(/gi[áa]\s*:?\s*([\d.,]+\s*k?)/iu);
+    if (m) {
+      priceCandidate = parsePriceValue(m[1]);
+      if (priceCandidate) break;
+    }
+  }
+  if (priceCandidate === null) {
+    for (const line of cleanedLines) {
+      const m = line.match(/([\d.,]+\s*k)\b/iu);
+      if (m) {
+        priceCandidate = parsePriceValue(m[1]);
+        if (priceCandidate) break;
+      }
+    }
+  }
+
+  return { nameCandidate, priceCandidate };
+}
+
+// Đọc chữ (OCR) trong 1 ảnh chụp màn hình, đoán tên + giá bán trong caption. Chỉ đọc chữ — việc
+// so khớp với sản phẩm có sẵn tách riêng ở matchProductByName(), vì nhiều ảnh chụp màn hình có
+// thể cùng 1 caption (nhiều góc chụp của cùng 1 sản phẩm) và chỉ cần so khớp 1 lần cho cả nhóm.
+export async function ocrScreenshot(formData) {
   const authError = requireAdmin();
   if (authError) return authError;
 
@@ -36,29 +85,31 @@ export async function matchScreenshotText(formData) {
     return { success: false, error: "Thiếu ảnh chụp màn hình." };
   }
 
-  let text = "";
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
-    text = await ocrImageText(buffer);
+    const text = await ocrImageText(buffer);
+    const { nameCandidate, priceCandidate } = pickNameAndPrice(text);
+    return { success: true, text, nameCandidate, priceCandidate };
   } catch (err) {
     return { success: false, error: `Lỗi đọc chữ trong ảnh: ${err?.message || "không rõ nguyên nhân"}` };
   }
+}
 
-  const nameCandidate = pickNameCandidate(text);
-  if (!nameCandidate) {
-    return { success: true, text, nameCandidate: "", candidates: [] };
-  }
+// So khớp mờ (fuzzy, pg_trgm — xem migration_015) 1 tên sản phẩm với các sản phẩm ĐÃ CÓ SẴN.
+export async function matchProductByName(name) {
+  const authError = requireAdmin();
+  if (authError) return authError;
+
+  const text = (name || "").trim();
+  if (!text) return { success: true, candidates: [] };
 
   const { data, error } = await supabaseAdmin.rpc("match_products_by_text", {
-    search_text: nameCandidate,
+    search_text: text,
     match_limit: MATCH_LIMIT,
   });
 
-  if (error) {
-    return { success: false, error: error.message, text, nameCandidate };
-  }
-
-  return { success: true, text, nameCandidate, candidates: data || [] };
+  if (error) return { success: false, error: error.message, candidates: [] };
+  return { success: true, candidates: data || [] };
 }
 
 async function uploadOneImage(file, slugForPath) {
@@ -78,21 +129,24 @@ async function uploadOneImage(file, slugForPath) {
   return data?.publicUrl || null;
 }
 
-// Gắn NHIỀU ảnh (nhiều góc chụp cùng 1 sản phẩm) vào 1 sản phẩm ĐÃ CÓ SẴN trong 1 lần —
-// thêm vào cuối mảng ảnh hiện có, không xoá ảnh cũ (giống nguyên tắc của "Gán ảnh hàng loạt").
+// Gắn NHIỀU ảnh (nhiều góc chụp cùng 1 sản phẩm) vào 1 sản phẩm ĐÃ CÓ SẴN trong 1 lần — thêm vào
+// cuối mảng ảnh hiện có, không xoá ảnh cũ (giống nguyên tắc của "Gán ảnh hàng loạt"). Nếu có kèm
+// "price" hợp lệ (khác giá đang lưu — admin đã tự xác nhận ở bước xem trước vì giá đọc từ caption
+// khác giá cũ) thì cập nhật giá luôn trong cùng 1 lần lưu.
 export async function attachPhotosToProduct(formData) {
   const authError = requireAdmin();
   if (authError) return authError;
 
   const slug = formData.get("slug")?.trim();
   const files = formData.getAll("images").filter((f) => typeof f === "object" && f.size > 0);
+  const priceRaw = formData.get("price");
   if (!slug || files.length === 0) {
     return { success: false, error: "Thiếu sản phẩm hoặc ảnh." };
   }
 
   const { data: product, error: fetchError } = await supabaseAdmin
     .from("products")
-    .select("images, image_url")
+    .select("images, image_url, price")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -117,10 +171,13 @@ export async function attachPhotosToProduct(formData) {
     : [];
   const newImages = [...currentImages, ...uploadedUrls];
 
-  const { error: updateError } = await supabaseAdmin
-    .from("products")
-    .update({ images: newImages, image_url: newImages[0] })
-    .eq("slug", slug);
+  const update = { images: newImages, image_url: newImages[0] };
+  const price = Number(priceRaw);
+  if (priceRaw !== null && Number.isFinite(price) && price > 0 && price !== product.price) {
+    update.price = price;
+  }
+
+  const { error: updateError } = await supabaseAdmin.from("products").update(update).eq("slug", slug);
 
   if (updateError) {
     return { success: false, error: updateError.message };
@@ -130,4 +187,61 @@ export async function attachPhotosToProduct(formData) {
   revalidatePath("/");
   revalidatePath(`/san-pham/${slug}`);
   return { success: true, uploadedCount: uploadedUrls.length };
+}
+
+// Không có sản phẩm nào khớp đủ tốt trong database -> TỰ ĐỘNG TẠO MỚI kèm luôn (các) ảnh chụp màn
+// hình cùng nhóm (cùng 1 caption = cùng 1 sản phẩm), khỏi phải tạo xong rồi qua "Gán ảnh hàng loạt" riêng.
+export async function createProductWithPhotos(formData) {
+  const authError = requireAdmin();
+  if (authError) return authError;
+
+  const name = formData.get("name")?.trim();
+  const price = Number(formData.get("price"));
+  const category = formData.get("category")?.trim();
+  const categoryCode = formData.get("categoryCode")?.trim() || "SP";
+  const files = formData.getAll("images").filter((f) => typeof f === "object" && f.size > 0);
+
+  if (!name) return { success: false, error: "Thiếu tên sản phẩm." };
+  if (!Number.isFinite(price) || price <= 0) return { success: false, error: "Giá bán không hợp lệ." };
+  if (!category) return { success: false, error: "Thiếu danh mục." };
+  if (files.length === 0) return { success: false, error: "Thiếu ảnh." };
+
+  const baseSlug = slugify(name) || `sp-${Date.now()}`;
+  const { data: clash } = await supabaseAdmin.from("products").select("slug").eq("slug", baseSlug).maybeSingle();
+  const slug = clash ? `${baseSlug}-${Math.random().toString(36).slice(2, 6)}` : baseSlug;
+  const code = `${categoryCode}-${Date.now().toString(36).toUpperCase()}`;
+
+  const uploadedUrls = [];
+  for (const file of files) {
+    const url = await uploadOneImage(file, slug);
+    if (url) uploadedUrls.push(url);
+  }
+  if (uploadedUrls.length === 0) {
+    return { success: false, error: "Tải ảnh lên thất bại, thử lại." };
+  }
+
+  const { error } = await supabaseAdmin.from("products").insert({
+    slug,
+    code,
+    name,
+    price,
+    old_price: null,
+    // Giống nhap-zalo và import CSV: shop không quản lý tồn kho theo từng lượt nhập.
+    stock: 9999,
+    category,
+    brand: null,
+    variants: [],
+    default_variant: null,
+    specs: [],
+    images: uploadedUrls,
+    image_url: uploadedUrls[0],
+  });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/admin/products");
+  revalidatePath("/");
+  return { success: true, slug, uploadedCount: uploadedUrls.length };
 }

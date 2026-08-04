@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { prepareZaloRows } from "@/app/admin/(protected)/products/nhap-zalo/actions";
-import { commitProductsCsv } from "@/app/admin/(protected)/products/import/actions";
+import {
+  prepareZaloRows,
+  createZaloProductWithPhotos,
+  attachZaloPhotos,
+} from "@/app/admin/(protected)/products/nhap-zalo/actions";
 import { VARIANT_PRESETS } from "@/lib/variantPresets";
 import PriceInput from "@/components/PriceInput";
 
@@ -82,9 +85,14 @@ export default function NhapZaloForm({ categoryGroups }) {
   const [presetIndex, setPresetIndex] = useState("");
   const [customVariants, setCustomVariants] = useState("");
   const [items, setItems] = useState([]);
+  // Ảnh chụp màn hình chọn 1 lần cho CẢ LÔ, sắp theo thời gian chụp (lastModified) — đúng thứ tự
+  // admin chụp lần lượt từng bài đăng, khớp với thứ tự các khối text đã dán ở trên.
+  const [photoFiles, setPhotoFiles] = useState([]); // [{file, previewUrl}], đã sort theo lastModified
+  const [photoCounts, setPhotoCounts] = useState([]); // số ảnh gán cho từng item, cùng độ dài với items
   const [rows, setRows] = useState(null); // sau khi prepareZaloRows xong, sẵn sàng commit
   const [duplicates, setDuplicates] = useState([]); // cảnh báo trùng tên, ứng với index trong rows
   const [duplicatesAck, setDuplicatesAck] = useState(false); // admin đã xem cảnh báo trùng
+  const [duplicateChoice, setDuplicateChoice] = useState({}); // index -> "existing" | "new"
   const [isBusy, setIsBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
@@ -93,6 +101,19 @@ export default function NhapZaloForm({ categoryGroups }) {
     presetIndex !== ""
       ? VARIANT_PRESETS[Number(presetIndex)].variants
       : customVariants.split(",").map((s) => s.trim()).filter(Boolean);
+
+  // Cắt photoFiles theo thứ tự thành từng nhóm cho mỗi item, dựa trên photoCounts — KHÔNG đoán mò
+  // (không OCR/không tự dò ranh giới), hoàn toàn theo số ảnh admin đã xác nhận cho từng sản phẩm.
+  const photoGroups = [];
+  {
+    let cursor = 0;
+    for (const count of photoCounts) {
+      photoGroups.push(photoFiles.slice(cursor, cursor + count));
+      cursor += count;
+    }
+  }
+  const totalAssigned = photoCounts.reduce((a, b) => a + b, 0);
+  const leftoverPhotos = photoFiles.slice(totalAssigned);
 
   function handleParse() {
     setError("");
@@ -104,6 +125,23 @@ export default function NhapZaloForm({ categoryGroups }) {
       return;
     }
     setItems(parsed);
+    // Ảnh đã chọn từ trước (nếu có) chia đều lại theo số sản phẩm mới tách được — admin chỉnh tay
+    // tiếp ở bước gắn ảnh nếu chia đều không đúng thực tế (ảnh không đều nhau giữa các bài đăng).
+    const even = parsed.length ? Math.floor(photoFiles.length / parsed.length) : 0;
+    setPhotoCounts(parsed.map(() => even));
+  }
+
+  function handlePhotoFilesChange(e) {
+    const files = Array.from(e.target.files || []).sort((a, b) => a.lastModified - b.lastModified);
+    const withPreview = files.map((file) => ({ file, previewUrl: URL.createObjectURL(file) }));
+    setPhotoFiles(withPreview);
+    const even = items.length ? Math.floor(withPreview.length / items.length) : 0;
+    setPhotoCounts(items.map(() => even));
+  }
+
+  function setPhotoCount(i, value) {
+    const n = Math.max(0, Math.round(Number(value) || 0));
+    setPhotoCounts((prev) => prev.map((c, idx) => (idx === i ? n : c)));
   }
 
   function updateRowPrice(i, value) {
@@ -121,6 +159,9 @@ export default function NhapZaloForm({ categoryGroups }) {
 
   function removeItem(i) {
     setItems((prev) => prev.filter((_, idx) => idx !== i));
+    // Giữ photoCounts khớp index với items — xoá đúng vị trí, KHÔNG trả lại ảnh cho leftoverPhotos
+    // (admin có thể gán tay lại nếu cần, tránh logic tự động dồn ảnh gây khó đoán).
+    setPhotoCounts((prev) => prev.filter((_, idx) => idx !== i));
   }
 
   async function handlePrepare() {
@@ -129,6 +170,10 @@ export default function NhapZaloForm({ categoryGroups }) {
     );
     if (invalid) {
       setError("Có dòng thiếu tên hoặc giá không hợp lệ — sửa lại (giá phải là số lớn hơn 0) trước khi tiếp tục.");
+      return;
+    }
+    if (photoGroups.some((g) => g.length === 0)) {
+      setError("Có sản phẩm chưa gắn ảnh nào — chỉnh lại số ảnh ở bước gắn ảnh trước khi tiếp tục.");
       return;
     }
     setIsBusy(true);
@@ -147,6 +192,14 @@ export default function NhapZaloForm({ categoryGroups }) {
       setRows(res.rows);
       setDuplicates(res.duplicates || []);
       setDuplicatesAck(false);
+      // Trùng với sản phẩm ĐÃ CÓ SẴN -> mặc định "cập nhật ảnh cho sản phẩm đó" (an toàn hơn, tránh
+      // tạo trùng); trùng NGAY TRONG lô đang dán (chưa có existingSlug, sản phẩm kia còn chưa tồn
+      // tại) thì bắt buộc "tạo mới" vì chưa có gì để gắn thêm ảnh vào.
+      const nextChoice = {};
+      (res.duplicates || []).forEach((d) => {
+        nextChoice[d.index] = d.existingSlug ? "existing" : "new";
+      });
+      setDuplicateChoice(nextChoice);
     } catch (err) {
       setError(`Có lỗi khi chuẩn bị dữ liệu: ${err?.message || "không rõ nguyên nhân"}`);
     } finally {
@@ -158,21 +211,51 @@ export default function NhapZaloForm({ categoryGroups }) {
     if (!rows?.length) return;
     if (duplicates.length > 0 && !duplicatesAck) return;
     setIsBusy(true);
-    try {
-      const res = await commitProductsCsv(rows);
-      setResult(res);
-      if (res.success) {
-        setText("");
-        setItems([]);
-        setRows(null);
-        setDuplicates([]);
-        setDuplicatesAck(false);
+    const categoryOption = categoryGroups.flatMap((g) => g.categories).find((c) => c.slug === category);
+    const perItem = [];
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const files = (photoGroups[i] || []).map((p) => p.file);
+      const dupInfo = duplicates.find((d) => d.index === i);
+      const useExisting = Boolean(dupInfo?.existingSlug) && duplicateChoice[i] === "existing";
+
+      try {
+        if (useExisting) {
+          const formData = new FormData();
+          formData.set("slug", dupInfo.existingSlug);
+          formData.set("price", String(row.price));
+          files.forEach((f) => formData.append("images", f));
+          const res = await attachZaloPhotos(formData);
+          perItem.push({ name: row.name, success: res.success, error: res.error, mode: "existing" });
+        } else {
+          const formData = new FormData();
+          formData.set("name", row.name);
+          formData.set("price", String(row.price));
+          formData.set("category", row.category);
+          formData.set("categoryCode", categoryOption?.code || "SP");
+          formData.set("variants", JSON.stringify(row.variants || []));
+          files.forEach((f) => formData.append("images", f));
+          const res = await createZaloProductWithPhotos(formData);
+          perItem.push({ name: row.name, success: res.success, error: res.error, mode: "new" });
+        }
+      } catch (err) {
+        perItem.push({ name: row.name, success: false, error: err?.message || "không rõ nguyên nhân", mode: useExisting ? "existing" : "new" });
       }
-    } catch (err) {
-      setResult({ success: false, batchErrors: [err?.message || "không rõ nguyên nhân"] });
-    } finally {
-      setIsBusy(false);
     }
+
+    const success = perItem.every((r) => r.success);
+    setResult({ success, items: perItem });
+    if (success) {
+      setText("");
+      setItems([]);
+      setPhotoFiles([]);
+      setPhotoCounts([]);
+      setRows(null);
+      setDuplicates([]);
+      setDuplicatesAck(false);
+      setDuplicateChoice({});
+    }
+    setIsBusy(false);
   }
 
   return (
@@ -328,7 +411,87 @@ export default function NhapZaloForm({ categoryGroups }) {
             </tbody>
           </table>
 
-          <button type="button" className="btn-primary" onClick={handlePrepare} disabled={isBusy} style={{ marginTop: 14 }}>
+          <div style={{ marginTop: 28 }}>
+            <p style={{ fontWeight: 600, fontSize: 13.5, marginBottom: 6 }}>
+              Bước 2 — Gắn ảnh cho từng sản phẩm:
+            </p>
+            <p style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 0, marginBottom: 10 }}>
+              Chọn hết ảnh chụp màn hình của cả lô cùng lúc (ảnh tự sắp theo thời gian chụp). Công cụ
+              chia đều theo số sản phẩm, sửa lại số ảnh từng dòng nếu chia chưa đúng — không đoán tự
+              động theo caption nữa, gõ đúng số ảnh là chắc chắn đúng ảnh.
+            </p>
+            <input type="file" accept="image/*" multiple onChange={handlePhotoFilesChange} />
+            {photoFiles.length > 0 && (
+              <p style={{ fontSize: 12.5, color: totalAssigned === photoFiles.length ? "var(--ink-soft)" : "#B0503A", marginTop: 8 }}>
+                Đã chọn {photoFiles.length} ảnh — đã gán {totalAssigned}
+                {totalAssigned !== photoFiles.length && ` (còn dư ${leftoverPhotos.length} ảnh chưa gán cho sản phẩm nào)`}.
+              </p>
+            )}
+
+            {photoFiles.length > 0 && (
+              <table className="cart-table" style={{ marginTop: 10 }}>
+                <thead>
+                  <tr>
+                    <th>Sản phẩm</th>
+                    <th>Số ảnh</th>
+                    <th>Ảnh đã gán</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((it, i) => (
+                    <tr key={i}>
+                      <td style={{ fontSize: 13 }}>{it.name}</td>
+                      <td>
+                        <input
+                          type="number"
+                          min={0}
+                          value={photoCounts[i] ?? 0}
+                          onChange={(e) => setPhotoCount(i, e.target.value)}
+                          style={{ width: 60, border: "1px solid var(--line)", borderRadius: "var(--radius)", padding: "6px 8px", fontSize: 13.5 }}
+                        />
+                      </td>
+                      <td>
+                        {(photoGroups[i] || []).length === 0 ? (
+                          <span style={{ fontSize: 12, color: "#B0503A" }}>Chưa có ảnh</span>
+                        ) : (
+                          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", maxWidth: 260 }}>
+                            {(photoGroups[i] || []).map((p, pi) => (
+                              <img
+                                key={pi}
+                                src={p.previewUrl}
+                                alt=""
+                                style={{ width: 40, height: 40, objectFit: "cover", borderRadius: "var(--radius)" }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {leftoverPhotos.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <p style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 4 }}>
+                  Ảnh chưa gán cho sản phẩm nào (tăng &quot;Số ảnh&quot; ở dòng tương ứng để nhận thêm):
+                </p>
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                  {leftoverPhotos.map((p, pi) => (
+                    <img
+                      key={pi}
+                      src={p.previewUrl}
+                      alt=""
+                      style={{ width: 40, height: 40, objectFit: "cover", borderRadius: "var(--radius)", border: "1.5px solid #B0503A" }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button type="button" className="btn-primary" onClick={handlePrepare} disabled={isBusy} style={{ marginTop: 20 }}>
             {isBusy ? "Đang xử lý..." : "Kiểm tra trùng & chuẩn bị lưu →"}
           </button>
         </div>
@@ -336,10 +499,10 @@ export default function NhapZaloForm({ categoryGroups }) {
 
       {rows && (
         <div className="gan-anh-confirm" style={{ marginTop: 24 }}>
-          <div className="gan-anh-confirm-name">Bước 2 — Xác nhận tạo {rows.length} sản phẩm</div>
+          <div className="gan-anh-confirm-name">Bước 3 — Xác nhận tạo {rows.length} sản phẩm</div>
           <p style={{ fontSize: 13.5, margin: "0 0 12px" }}>
-            Sản phẩm sẽ được tạo <b>chưa có ảnh</b> — dùng “Gán ảnh hàng loạt” ngay sau đó để gắn
-            ảnh cho từng sản phẩm. Kiểm tra lại giá lần cuối bên dưới trước khi xác nhận.
+            Kiểm tra lại giá lần cuối bên dưới trước khi xác nhận — ảnh đã gắn kèm theo từng dòng ở
+            bước trước, không cần qua &quot;Gán ảnh hàng loạt&quot; riêng nữa.
           </p>
 
           {duplicates.length > 0 && (
@@ -357,13 +520,35 @@ export default function NhapZaloForm({ categoryGroups }) {
               </p>
               <ul style={{ fontSize: 13, paddingLeft: 18, margin: 0 }}>
                 {duplicates.map((d) => (
-                  <li key={d.index}>
+                  <li key={d.index} style={{ marginBottom: 8 }}>
                     <b>{d.name}</b>
                     {d.existingName && (
                       <> — trùng tên với sản phẩm đã có sẵn: <i>{d.existingName}</i> (giá hiện tại: {formatPrice(d.existingPrice)})</>
                     )}
                     {d.duplicateInSameBatch && (
                       <> — trùng tên với dòng “<i>{d.duplicateInSameBatch}</i>” cũng vừa dán trong lô này</>
+                    )}
+                    {d.existingSlug && (
+                      <div style={{ display: "flex", gap: 14, marginTop: 4 }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", fontWeight: 400 }}>
+                          <input
+                            type="radio"
+                            name={`dup-${d.index}`}
+                            checked={duplicateChoice[d.index] === "existing"}
+                            onChange={() => setDuplicateChoice((prev) => ({ ...prev, [d.index]: "existing" }))}
+                          />
+                          Cập nhật thêm ảnh cho sản phẩm đã có
+                        </label>
+                        <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", fontWeight: 400 }}>
+                          <input
+                            type="radio"
+                            name={`dup-${d.index}`}
+                            checked={duplicateChoice[d.index] === "new"}
+                            onChange={() => setDuplicateChoice((prev) => ({ ...prev, [d.index]: "new" }))}
+                          />
+                          Vẫn tạo sản phẩm mới
+                        </label>
+                      </div>
                     )}
                   </li>
                 ))}
@@ -381,22 +566,32 @@ export default function NhapZaloForm({ categoryGroups }) {
                 <th>Tên sản phẩm</th>
                 <th>Giá bán (đ)</th>
                 <th>Dòng máy</th>
+                <th>Ảnh</th>
+                <th>Xử lý</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r, i) => (
-                <tr key={r.slug}>
-                  <td>{r.name}</td>
-                  <td>
-                    <PriceInput
-                      value={r.price ?? ""}
-                      onChange={(digits) => updateRowPrice(i, digits)}
-                      inputStyle={{ width: 130, border: "1px solid var(--line)", borderRadius: "var(--radius)", padding: "6px 34px 6px 8px", fontSize: 13.5 }}
-                    />
-                  </td>
-                  <td>{r.variants?.length ? `${r.variants.length} dòng máy` : "không gắn dòng máy"}</td>
-                </tr>
-              ))}
+              {rows.map((r, i) => {
+                const dupInfo = duplicates.find((d) => d.index === i);
+                const useExisting = Boolean(dupInfo?.existingSlug) && duplicateChoice[i] === "existing";
+                return (
+                  <tr key={r.slug}>
+                    <td>{r.name}</td>
+                    <td>
+                      <PriceInput
+                        value={r.price ?? ""}
+                        onChange={(digits) => updateRowPrice(i, digits)}
+                        inputStyle={{ width: 130, border: "1px solid var(--line)", borderRadius: "var(--radius)", padding: "6px 34px 6px 8px", fontSize: 13.5 }}
+                      />
+                    </td>
+                    <td>{r.variants?.length ? `${r.variants.length} dòng máy` : "không gắn dòng máy"}</td>
+                    <td>{(photoGroups[i] || []).length} ảnh</td>
+                    <td style={{ fontSize: 12.5, color: "var(--teal)", fontWeight: 600 }}>
+                      {useExisting ? `Cập nhật ảnh: ${dupInfo.existingName}` : "Tạo mới"}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 
@@ -416,6 +611,7 @@ export default function NhapZaloForm({ categoryGroups }) {
                 setRows(null);
                 setDuplicates([]);
                 setDuplicatesAck(false);
+                setDuplicateChoice({});
               }}
               disabled={isBusy}
             >
@@ -430,19 +626,20 @@ export default function NhapZaloForm({ categoryGroups }) {
           className="empty-state"
           style={{ marginTop: 20, textAlign: "left", borderColor: result.success ? "var(--teal)" : "#B0503A" }}
         >
-          {result.success ? (
-            <p style={{ fontWeight: 600, color: "var(--teal)", margin: 0 }}>
-              Đã tạo thành công {result.insertedCount} sản phẩm. Giờ vào{" "}
-              <a href="/admin/products/gan-anh" style={{ color: "var(--teal)" }}>
-                Gán ảnh hàng loạt
-              </a>{" "}
-              để gắn ảnh.
-            </p>
-          ) : (
-            <p style={{ fontWeight: 600, color: "#B0503A", margin: 0 }}>
-              Có lỗi: {result.batchErrors?.join("; ") || "không rõ nguyên nhân"}
-            </p>
-          )}
+          <p style={{ fontWeight: 600, color: result.success ? "var(--teal)" : "#B0503A", margin: "0 0 8px" }}>
+            {result.success ? "Đã xử lý xong, kèm ảnh luôn:" : "Có sản phẩm xử lý lỗi:"}
+          </p>
+          <ul style={{ fontSize: 13, margin: 0, paddingLeft: 18 }}>
+            {result.items?.map((it, i) => (
+              <li key={i} style={{ color: it.success ? "var(--ink-soft)" : "#B0503A" }}>
+                {it.success
+                  ? it.mode === "existing"
+                    ? `✓ Đã cập nhật ảnh cho "${it.name}"`
+                    : `✓ Đã tạo mới "${it.name}"`
+                  : `✗ Lỗi "${it.name}": ${it.error}`}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

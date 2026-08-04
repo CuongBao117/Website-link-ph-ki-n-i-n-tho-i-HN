@@ -108,10 +108,7 @@ export default async function AdminProductsPage({ searchParams }) {
           Nhập nhanh nhiều dòng máy
         </Link>
         <Link href="/admin/products/nhap-zalo" className="cart-remove" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
-          Nhập từ bài đăng Zalo
-        </Link>
-        <Link href="/admin/products/ghep-anh-zalo" className="cart-remove" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
-          Ghép ảnh từ ảnh chụp màn hình Zalo
+          Nhập từ bài đăng Zalo (kèm ảnh)
         </Link>
       </div>
 

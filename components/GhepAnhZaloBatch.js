@@ -95,13 +95,36 @@ function isNoiseLine(line) {
 // thành vài ký tự rác dính liền (vd "HlãSì 90k" thay vì "💵Sỉ 90k"), neo đầu dòng sẽ làm trật khớp.
 const PRICE_LINE = /(s[ỉiìịĩí]|gi[áàảãạa])(\s|:|$)/i;
 
+// Icon kiểu số khung tròn ("1️⃣2️⃣"...) hay đứng đầu caption làm bullet — không phải ký tự Unicode
+// pictographic đơn giản như ✨/💵 nên \p{Extended_Pictographic} không bắt được, OCR "đoán mò" ra vài
+// ký tự rác dính liền đầu dòng (vd "1‡ 1‡ Vỏ bộ..." hay "%‡ 1# Vỏ bộ..."). Rác này KHÁC NHAU giữa
+// các ảnh dù cùng 1 sản phẩm (đoán mò ngẫu nhiên) nên làm gộp nhóm theo tên bị sai (coi là 2 tên
+// khác nhau) — cắt bỏ các "từ" ở đầu dòng không chứa chữ cái nào, ngắn (<=3 ký tự) và có ít nhất 1
+// ký hiệu không phải chữ/số (phân biệt với số thật đứng đầu tên, vd "12 Pro Max").
+function stripLeadingIconJunk(line) {
+  const tokens = line.split(" ");
+  let start = 0;
+  while (
+    start < tokens.length - 1 &&
+    tokens[start].length > 0 &&
+    tokens[start].length <= 3 &&
+    !/\p{L}/u.test(tokens[start]) &&
+    /[^\p{L}\p{N}]/u.test(tokens[start])
+  ) {
+    start++;
+  }
+  return tokens.slice(start).join(" ");
+}
+
 // Bỏ icon/emoji ở đầu-cuối dòng (caption Zalo hay có "✨✨", "💵"...) để tên/giá đọc ra không dính rác.
 function cleanLine(line) {
-  return line
-    .replace(/\p{Extended_Pictographic}/gu, "")
-    .replace(/^[\s•*\-–✅❌:]+|[\s•*\-–✅❌]+$/g, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
+  return stripLeadingIconJunk(
+    line
+      .replace(/\p{Extended_Pictographic}/gu, "")
+      .replace(/^[\s•*\-–✅❌:]+|[\s•*\-–✅❌]+$/g, "")
+      .replace(/\s{2,}/g, " ")
+      .trim()
+  ).trim();
 }
 
 // Bóc số + "k" ra khỏi chuỗi giá kiểu Zalo: "Sỉ 90k" -> 90000, "125.000đ" -> 125000.
@@ -202,6 +225,19 @@ function pickNameAndPrice(lines) {
       const m = line.match(/([\d.,]+\s*k)\b/iu);
       if (m) {
         priceCandidate = parsePriceValue(m[1]);
+        if (priceCandidate) break;
+      }
+    }
+  }
+  // Vẫn không thấy — thử số viết đủ kiểu "68.000đ" (không có "k", không có "Sỉ"/"Giá" đứng trước,
+  // vd chữ "Sỉ" bị OCR đọc rác quá mức không khớp được mẫu nào ở trên). Đòi số phải tách nhóm 3 chữ
+  // số bằng dấu chấm/phẩy (68.000) để tránh bắt nhầm số linh tinh khác trong ảnh (thông số máy...).
+  // Không dùng \b sau "đ" — như PRICE_LINE ở trên, \b không khớp sau ký tự có dấu.
+  if (priceCandidate === null) {
+    for (const line of allLines) {
+      const m = line.match(/\d{1,3}([.,]\d{3})+\s*đ/iu);
+      if (m) {
+        priceCandidate = parsePriceValue(m[0]);
         if (priceCandidate) break;
       }
     }

@@ -20,6 +20,13 @@ const OCR_WORKER_COUNT = 3; // vài worker chạy song song — giới hạn v�
 const OCR_TIMEOUT_MS = 25000; // 1 ảnh đọc quá lâu (ảnh lỗi/quá nặng/mạng chậm) thì bỏ qua, không treo cả lô
 const OCR_MAX_DIMENSION = 1000; // thu nhỏ ảnh trước khi đọc chữ cho nhanh hơn — chỉ cần đọc rõ caption, không cần giữ nguyên độ phân giải ảnh gốc
 
+// Ảnh chụp màn hình Zalo không chỉ có caption — chữ in trên vỏ máy/hộp, badge nhỏ dán lên ảnh sản
+// phẩm, hoạ tiết nền... cũng bị Tesseract cố đọc và trả về toàn ký tự vô nghĩa (rác). Engine tự
+// báo độ tin cậy (0-100) cho TỪNG DÒNG đọc được — chữ caption (font chữ ứng dụng render ra, rõ nét)
+// luôn đọc với độ tin cậy cao, còn chữ chụp từ vật thật/badge nén nhỏ thường đọc rất thấp. Lọc theo
+// ngưỡng này đáng tin cậy hơn nhiều so với đoán rác bằng regex.
+const OCR_MIN_LINE_CONFIDENCE = 60;
+
 let ocrWorkerPoolPromise = null;
 
 function getOcrWorkerPool() {
@@ -82,7 +89,9 @@ function isNoiseLine(line) {
 // Dòng kiểu "Sỉ 90k" / "Giá: 95.000đ" — không phải tên sản phẩm, tách riêng ra để đọc GIÁ.
 // Không dùng \b ngay sau "ỉ"/"á" — \b của JS tính theo \w kiểu ASCII nên không nhận ký tự có dấu,
 // khiến \b không bao giờ khớp ở đây (vd "Sỉ 90k" sẽ KHÔNG được coi là dòng giá nếu dùng \b).
-const PRICE_LINE = /^(s[ỉi]|gi[áa])(\s|:|$)/i;
+// Chấp nhận cả các biến thể dấu khác của "sỉ"/"giá" mà OCR hay đọc lệch dấu (sì/si/sị/sĩ/sí,
+// già/giả/giã/giạ/gia) — engine đọc icon 💵/tiền tệ cạnh chữ hay làm lệch dấu thanh của ký tự đầu.
+const PRICE_LINE = /^(s[ỉiìịĩí]|gi[áàảãạa])(\s|:|$)/i;
 
 // Bỏ icon/emoji ở đầu-cuối dòng (caption Zalo hay có "✨✨", "💵"...) để tên/giá đọc ra không dính rác.
 function cleanLine(line) {
@@ -106,19 +115,34 @@ function parsePriceValue(raw) {
   return Math.round(hasK ? n * 1000 : n);
 }
 
-// Từ toàn bộ chữ OCR đọc được trong 1 ảnh chụp màn hình (lẫn cả tên người đăng, giờ đăng, chữ nút
-// bấm, badge in trên ảnh...), tách ra TÊN sản phẩm và GIÁ bán (ưu tiên dòng có "Sỉ"/"Giá", không
-// có thì quét số+k đầu tiên trong toàn bộ chữ).
+// Duyệt cây kết quả OCR có cấu trúc (page -> block -> paragraph -> line) để lấy từng DÒNG kèm độ
+// tin cậy — cần bật output "blocks: true" khi gọi worker.recognize() thì Tesseract mới trả cây này
+// (mặc định chỉ trả text phẳng, không có confidence từng dòng).
+function extractLinesWithConfidence(page) {
+  const lines = [];
+  for (const block of page?.blocks || []) {
+    for (const para of block.paragraphs || []) {
+      for (const line of para.lines || []) {
+        lines.push({ text: line.text, confidence: line.confidence });
+      }
+    }
+  }
+  return lines;
+}
+
+// Từ các dòng OCR đọc được trong 1 ảnh chụp màn hình (lẫn cả tên người đăng, giờ đăng, chữ nút
+// bấm, badge/chữ in trên ảnh sản phẩm...), tách ra TÊN sản phẩm và GIÁ bán (ưu tiên dòng có
+// "Sỉ"/"Giá", không có thì quét số+k đầu tiên trong toàn bộ chữ).
 //
-// Tên sản phẩm: gộp TẤT CẢ dòng còn lại sau khi bỏ dòng rác/dòng giá/dòng quá ngắn — caption thật
-// nằm dưới ảnh, sau phần rác đầu ảnh (tên người đăng, giờ đăng...), và có thể xuống dòng nhiều dòng
-// (tên máy + dung lượng/specs riêng dòng...) nên KHÔNG chỉ lấy 1 dòng dài nhất như trước (mất phần
-// còn lại của tên) và KHÔNG giới hạn trong vài dòng đầu (phần rác phía trên có thể dài hơn 6 dòng,
-// đẩy caption thật xuống dưới, khiến rác lọt vào bị chọn nhầm làm tên).
-function pickNameAndPrice(text) {
-  const cleanedLines = String(text || "")
-    .split("\n")
-    .map((l) => cleanLine(l))
+// Tên sản phẩm: gộp TẤT CẢ dòng còn lại sau khi bỏ dòng rác/dòng giá/dòng quá ngắn/dòng đọc với độ
+// tin cậy thấp (xem OCR_MIN_LINE_CONFIDENCE) — caption thật nằm dưới ảnh, sau phần rác đầu ảnh (tên
+// người đăng, giờ đăng...), và có thể xuống dòng nhiều dòng (tên máy + dung lượng/specs riêng
+// dòng...) nên KHÔNG chỉ lấy 1 dòng dài nhất như trước (mất phần còn lại của tên) và KHÔNG giới hạn
+// trong vài dòng đầu (phần rác phía trên có thể dài hơn 6 dòng, đẩy caption thật xuống dưới).
+function pickNameAndPrice(lines) {
+  const cleanedLines = lines
+    .filter((l) => l.confidence === null || l.confidence === undefined || l.confidence >= OCR_MIN_LINE_CONFIDENCE)
+    .map((l) => cleanLine(l.text || ""))
     .filter(Boolean);
 
   const nameLines = cleanedLines.filter((l) => l.length >= 4 && !isNoiseLine(l) && !PRICE_LINE.test(l));
@@ -126,7 +150,8 @@ function pickNameAndPrice(text) {
 
   let priceCandidate = null;
   for (const line of cleanedLines) {
-    const m = line.match(/s[ỉi]\s*:?\s*([\d.,]+\s*k?)/iu) || line.match(/gi[áa]\s*:?\s*([\d.,]+\s*k?)/iu);
+    const m =
+      line.match(/s[ỉiìịĩí]\s*:?\s*([\d.,]+\s*k?)/iu) || line.match(/gi[áàảãạa]\s*:?\s*([\d.,]+\s*k?)/iu);
     if (m) {
       priceCandidate = parsePriceValue(m[1]);
       if (priceCandidate) break;
@@ -161,11 +186,19 @@ async function ocrAllFiles(files, onProgress) {
       try {
         const ocrInput = await resizeForOcr(file);
         const { data } = await withTimeout(
-          worker.recognize(ocrInput),
+          worker.recognize(ocrInput, {}, { blocks: true }),
           OCR_TIMEOUT_MS,
           "Quá thời gian đọc chữ (ảnh quá nặng hoặc mạng chậm) — thử lại riêng ảnh này."
         );
-        const { nameCandidate, priceCandidate } = pickNameAndPrice(data.text || "");
+        // Bình thường luôn có blocks (đã bật ở trên) — chỉ fallback về text phẳng (không confidence,
+        // không lọc được rác theo độ tin cậy) nếu vì lý do gì đó engine không trả cây blocks.
+        const structuredLines = extractLinesWithConfidence(data);
+        const lines = structuredLines.length
+          ? structuredLines
+          : String(data.text || "")
+              .split("\n")
+              .map((text) => ({ text, confidence: null }));
+        const { nameCandidate, priceCandidate } = pickNameAndPrice(lines);
         results[i] = { file, nameCandidate, priceCandidate, ocrError: null };
       } catch (err) {
         results[i] = { file, nameCandidate: "", priceCandidate: null, ocrError: err?.message || "Lỗi đọc chữ không rõ nguyên nhân" };

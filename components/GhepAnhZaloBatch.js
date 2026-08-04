@@ -91,7 +91,9 @@ function isNoiseLine(line) {
 // khiến \b không bao giờ khớp ở đây (vd "Sỉ 90k" sẽ KHÔNG được coi là dòng giá nếu dùng \b).
 // Chấp nhận cả các biến thể dấu khác của "sỉ"/"giá" mà OCR hay đọc lệch dấu (sì/si/sị/sĩ/sí,
 // già/giả/giã/giạ/gia) — engine đọc icon 💵/tiền tệ cạnh chữ hay làm lệch dấu thanh của ký tự đầu.
-const PRICE_LINE = /^(s[ỉiìịĩí]|gi[áàảãạa])(\s|:|$)/i;
+// KHÔNG neo ở đầu dòng (bỏ ^) — icon tiền tệ đứng ngay trước "Sỉ"/"Giá" nhiều khi bị OCR đọc lẫn
+// thành vài ký tự rác dính liền (vd "HlãSì 90k" thay vì "💵Sỉ 90k"), neo đầu dòng sẽ làm trật khớp.
+const PRICE_LINE = /(s[ỉiìịĩí]|gi[áàảãạa])(\s|:|$)/i;
 
 // Bỏ icon/emoji ở đầu-cuối dòng (caption Zalo hay có "✨✨", "💵"...) để tên/giá đọc ra không dính rác.
 function cleanLine(line) {
@@ -116,40 +118,78 @@ function parsePriceValue(raw) {
 }
 
 // Duyệt cây kết quả OCR có cấu trúc (page -> block -> paragraph -> line) để lấy từng DÒNG kèm độ
-// tin cậy — cần bật output "blocks: true" khi gọi worker.recognize() thì Tesseract mới trả cây này
-// (mặc định chỉ trả text phẳng, không có confidence từng dòng).
+// tin cậy VÀ toạ độ dọc (bbox) — cần bật output "blocks: true" khi gọi worker.recognize() thì
+// Tesseract mới trả cây này (mặc định chỉ trả text phẳng, không có confidence/toạ độ từng dòng).
 function extractLinesWithConfidence(page) {
   const lines = [];
   for (const block of page?.blocks || []) {
     for (const para of block.paragraphs || []) {
       for (const line of para.lines || []) {
-        lines.push({ text: line.text, confidence: line.confidence });
+        lines.push({ text: line.text, confidence: line.confidence, bbox: line.bbox });
       }
     }
   }
   return lines;
 }
 
+// Ảnh chụp màn hình Zalo có bố cục CỐ ĐỊNH từ trên xuống: [rác đầu ảnh: tên người đăng, giờ đăng]
+// -> [ẢNH SẢN PHẨM — có thể dính chữ in thật trên vỏ máy/hộp, badge dán đè lên ảnh, đọc ĐÚNG với
+// độ tin cậy CAO nhưng không liên quan tới tên sản phẩm] -> [KHOẢNG TRỐNG] -> [CAPTION THẬT: tên +
+// giá, do người bán gõ] -> [nút Thích/Bình luận]. Vì chữ trong ảnh sản phẩm đọc ĐÚNG (không phải
+// rác/lỗi OCR), lọc theo độ tin cậy (OCR_MIN_LINE_CONFIDENCE) không tách được nó khỏi caption thật.
+// Phải dùng VỊ TRÍ: khoảng cách dọc giữa vùng ảnh sản phẩm (chữ thưa, rải rác không đều) và khối
+// caption (các dòng liền nhau, cách đều) luôn LỚN HƠN HẲN khoảng cách giữa 2 dòng caption liền kề.
+// Dò từ DƯỚI LÊN, lấy khoảng trống rõ rệt (>= ngưỡng) GẦN CUỐI DANH SÁCH NHẤT — không chỉ xét đúng 1
+// khoảng trống lớn nhất trong toàn ảnh, vì có thể còn khoảng trống lớn hơn nữa ở phía trên (giữa rác
+// đầu ảnh và ảnh sản phẩm) mà không phải ranh giới caption cần tìm.
+function findCaptionStartIndex(lines) {
+  if (lines.length < 2) return 0;
+  const heights = lines.map((l) => l.bbox.y1 - l.bbox.y0).filter((h) => h > 0);
+  if (!heights.length) return 0;
+  const sortedHeights = [...heights].sort((a, b) => a - b);
+  const medianHeight = sortedHeights[Math.floor(sortedHeights.length / 2)];
+  // Khoảng trống phải rõ rệt (hơn hẳn 1 dòng chữ bình thường) mới coi là ranh giới ảnh/caption —
+  // ảnh chụp caption sát mép (không có ảnh sản phẩm phía trên) thì không có khoảng trống lớn nào,
+  // coi TOÀN BỘ các dòng là caption, không cắt bớt.
+  const threshold = medianHeight * 1.4;
+
+  for (let i = lines.length - 2; i >= 0; i--) {
+    const gap = lines[i + 1].bbox.y0 - lines[i].bbox.y1;
+    if (gap >= threshold) return i + 1;
+  }
+  return 0;
+}
+
 // Từ các dòng OCR đọc được trong 1 ảnh chụp màn hình (lẫn cả tên người đăng, giờ đăng, chữ nút
 // bấm, badge/chữ in trên ảnh sản phẩm...), tách ra TÊN sản phẩm và GIÁ bán (ưu tiên dòng có
 // "Sỉ"/"Giá", không có thì quét số+k đầu tiên trong toàn bộ chữ).
 //
-// Tên sản phẩm: gộp TẤT CẢ dòng còn lại sau khi bỏ dòng rác/dòng giá/dòng quá ngắn/dòng đọc với độ
-// tin cậy thấp (xem OCR_MIN_LINE_CONFIDENCE) — caption thật nằm dưới ảnh, sau phần rác đầu ảnh (tên
-// người đăng, giờ đăng...), và có thể xuống dòng nhiều dòng (tên máy + dung lượng/specs riêng
-// dòng...) nên KHÔNG chỉ lấy 1 dòng dài nhất như trước (mất phần còn lại của tên) và KHÔNG giới hạn
-// trong vài dòng đầu (phần rác phía trên có thể dài hơn 6 dòng, đẩy caption thật xuống dưới).
+// Tên sản phẩm: giới hạn về khối caption thật ở CUỐI ảnh (xem findCaptionStartIndex) rồi gộp TẤT
+// CẢ dòng còn lại trong khối đó sau khi bỏ dòng rác/dòng giá/dòng quá ngắn/dòng đọc với độ tin cậy
+// thấp (xem OCR_MIN_LINE_CONFIDENCE) — caption có thể xuống dòng nhiều dòng (tên máy + dung
+// lượng/specs riêng dòng...) nên KHÔNG chỉ lấy 1 dòng dài nhất như trước (mất phần còn lại của tên).
 function pickNameAndPrice(lines) {
-  const cleanedLines = lines
+  // Icon 💵/tiền tệ đứng cạnh dòng giá hay bị OCR đọc lẫn thành rác dính liền vào chữ, làm dòng đó
+  // tụt độ tin cậy hoặc lọt ra khỏi vùng caption — GIÁ nên quét RỘNG trên TOÀN BỘ dòng đọc được
+  // (không giới hạn theo vùng caption/độ tin cậy như tên), thà quét rộng còn hơn bỏ sót giá vì lọc
+  // nhầm. Mẫu nhận diện giá đủ đặc trưng (đòi "Sỉ"/"Giá" hoặc số+k) nên ít khi bắt nhầm dòng khác.
+  const allLines = lines.map((l) => cleanLine(l.text || "")).filter(Boolean);
+
+  const positioned = lines.filter((l) => l.bbox && Number.isFinite(l.bbox.y0) && Number.isFinite(l.bbox.y1));
+  // Chỉ cắt theo vị trí khi CÓ toạ độ cho mọi dòng — thiếu toạ độ (fallback text phẳng, không có
+  // bbox) thì không biết dòng nào ở đâu, để nguyên toàn bộ, dựa vào lọc rác/confidence bên dưới.
+  const captionZone = positioned.length === lines.length ? lines.slice(findCaptionStartIndex(lines)) : lines;
+
+  const nameZoneLines = captionZone
     .filter((l) => l.confidence === null || l.confidence === undefined || l.confidence >= OCR_MIN_LINE_CONFIDENCE)
     .map((l) => cleanLine(l.text || ""))
     .filter(Boolean);
 
-  const nameLines = cleanedLines.filter((l) => l.length >= 4 && !isNoiseLine(l) && !PRICE_LINE.test(l));
+  const nameLines = nameZoneLines.filter((l) => l.length >= 4 && !isNoiseLine(l) && !PRICE_LINE.test(l));
   const nameCandidate = nameLines.join(" ").replace(/\s{2,}/g, " ").trim();
 
   let priceCandidate = null;
-  for (const line of cleanedLines) {
+  for (const line of allLines) {
     const m =
       line.match(/s[ỉiìịĩí]\s*:?\s*([\d.,]+\s*k?)/iu) || line.match(/gi[áàảãạa]\s*:?\s*([\d.,]+\s*k?)/iu);
     if (m) {
@@ -158,7 +198,7 @@ function pickNameAndPrice(lines) {
     }
   }
   if (priceCandidate === null) {
-    for (const line of cleanedLines) {
+    for (const line of allLines) {
       const m = line.match(/([\d.,]+\s*k)\b/iu);
       if (m) {
         priceCandidate = parsePriceValue(m[1]);

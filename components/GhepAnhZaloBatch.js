@@ -62,11 +62,27 @@ async function resizeForOcr(file) {
 
 // Các dòng chữ kiểu giao diện điện thoại/Zalo (giờ đăng, đồng hồ trạng thái, pin, nút Thích/Bình
 // luận/Chia sẻ...) hay lẫn vào kết quả OCR — loại trước để không làm nhiễu bước đoán tên sản phẩm.
-const NOISE_LINE =
-  /^(thích|bình luận|chia sẻ|xem thêm|trả lời|phút trước|giờ trước|ngày trước|tuần trước|\d+\s*(phút|giờ|ngày|tuần)|\d{1,2}[:.,]\d{2}(\s?(am|pm))?|\.{2,}|[×xX]|\d{1,3}\s?%)$/i;
+// Khớp NGUYÊN DÒNG — dùng cho rác không có số/mốc thời gian đi kèm. 3 nút Thích/Bình luận/Chia sẻ
+// nằm ngang cùng hàng trên giao diện Zalo nên OCR hay đọc dính vào chung 1 dòng — cho phép lặp lại
+// nhiều cụm nút cách nhau bởi khoảng trắng, không chỉ khớp đúng 1 cụm duy nhất.
+const ENGAGEMENT_WORD = "(thích|bình luận|chia sẻ|xem thêm|trả lời)";
+const NOISE_LINE_EXACT = new RegExp(`^(${ENGAGEMENT_WORD}(\\s+${ENGAGEMENT_WORD})*|\\.{2,}|[×xX]|\\d{1,3}\\s?%)$`, "i");
+
+// Mốc thời gian/ngày đăng ("6 giờ trước", "20:55", "24-07-2026 - 14:51"...) — OCR hay đọc dính thêm
+// 1-2 ký tự rác ở đầu/cuối dòng (icon cạnh chữ bị đọc lẫn vào, vd "x 6 giờ trước um") nên KHÔNG đòi
+// khớp nguyên dòng như trước nữa, chỉ cần dòng có CHỨA mốc thời gian là loại — tên sản phẩm thật
+// không bao giờ chứa các mốc này.
+const NOISE_LINE_TIME =
+  /\d+\s*(phút|giây|giờ|ngày|tuần)\s*trước|\d{1,2}[-/]\d{1,2}([-/]\d{2,4})?\s*[-–]?\s*\d{1,2}[:.,]\d{2}|\b\d{1,2}[:.,]\d{2}(\s?(am|pm))?\b/i;
+
+function isNoiseLine(line) {
+  return NOISE_LINE_EXACT.test(line) || NOISE_LINE_TIME.test(line);
+}
 
 // Dòng kiểu "Sỉ 90k" / "Giá: 95.000đ" — không phải tên sản phẩm, tách riêng ra để đọc GIÁ.
-const PRICE_LINE = /^(s[ỉi]|gi[áa])\b/i;
+// Không dùng \b ngay sau "ỉ"/"á" — \b của JS tính theo \w kiểu ASCII nên không nhận ký tự có dấu,
+// khiến \b không bao giờ khớp ở đây (vd "Sỉ 90k" sẽ KHÔNG được coi là dòng giá nếu dùng \b).
+const PRICE_LINE = /^(s[ỉi]|gi[áa])(\s|:|$)/i;
 
 // Bỏ icon/emoji ở đầu-cuối dòng (caption Zalo hay có "✨✨", "💵"...) để tên/giá đọc ra không dính rác.
 function cleanLine(line) {
@@ -91,17 +107,22 @@ function parsePriceValue(raw) {
 }
 
 // Từ toàn bộ chữ OCR đọc được trong 1 ảnh chụp màn hình (lẫn cả tên người đăng, giờ đăng, chữ nút
-// bấm, badge in trên ảnh...), tách ra TÊN sản phẩm (dòng dài nhất trong vài dòng đầu, sau khi bỏ
-// dòng rác/dòng giá/dòng quá ngắn) và GIÁ bán (ưu tiên dòng có "Sỉ"/"Giá", không có thì quét số+k
-// đầu tiên trong toàn bộ chữ).
+// bấm, badge in trên ảnh...), tách ra TÊN sản phẩm và GIÁ bán (ưu tiên dòng có "Sỉ"/"Giá", không
+// có thì quét số+k đầu tiên trong toàn bộ chữ).
+//
+// Tên sản phẩm: gộp TẤT CẢ dòng còn lại sau khi bỏ dòng rác/dòng giá/dòng quá ngắn — caption thật
+// nằm dưới ảnh, sau phần rác đầu ảnh (tên người đăng, giờ đăng...), và có thể xuống dòng nhiều dòng
+// (tên máy + dung lượng/specs riêng dòng...) nên KHÔNG chỉ lấy 1 dòng dài nhất như trước (mất phần
+// còn lại của tên) và KHÔNG giới hạn trong vài dòng đầu (phần rác phía trên có thể dài hơn 6 dòng,
+// đẩy caption thật xuống dưới, khiến rác lọt vào bị chọn nhầm làm tên).
 function pickNameAndPrice(text) {
   const cleanedLines = String(text || "")
     .split("\n")
     .map((l) => cleanLine(l))
     .filter(Boolean);
 
-  const nameLines = cleanedLines.filter((l) => l.length >= 4 && !NOISE_LINE.test(l) && !PRICE_LINE.test(l));
-  const nameCandidate = nameLines.length ? nameLines.slice(0, 6).sort((a, b) => b.length - a.length)[0] : "";
+  const nameLines = cleanedLines.filter((l) => l.length >= 4 && !isNoiseLine(l) && !PRICE_LINE.test(l));
+  const nameCandidate = nameLines.join(" ").replace(/\s{2,}/g, " ").trim();
 
   let priceCandidate = null;
   for (const line of cleanedLines) {

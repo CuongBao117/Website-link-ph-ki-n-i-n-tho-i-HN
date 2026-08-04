@@ -249,8 +249,16 @@ export default function GhepAnhZaloBatch({ categoryGroups }) {
     if (!group.nameCandidate) {
       return { candidates: [], mode: "new", newName: "", newPrice: group.priceCandidate };
     }
-    const res = await matchProductByName(group.nameCandidate);
-    const candidates = res.success ? res.candidates || [] : [];
+    // Gọi Server Action có thể thất bại (mất mạng, phiên đăng nhập hết hạn, vừa deploy bản mới
+    // khiến action cũ không còn hợp lệ...) — không để 1 nhóm lỗi làm crash cả bảng, coi như
+    // "chưa tìm thấy sản phẩm khớp" và để admin tự tìm tay/tạo mới.
+    let res;
+    try {
+      res = await matchProductByName(group.nameCandidate);
+    } catch {
+      res = null;
+    }
+    const candidates = res?.success ? res.candidates || [] : [];
     const best = candidates[0];
     if (best && best.score >= AUTO_MATCH_THRESHOLD) {
       return {

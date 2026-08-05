@@ -14,7 +14,10 @@ export async function generateMetadata({ params }) {
   if (!product) return {};
 
   const displayPrice = getDisplayPrice(product);
-  const title = `${product.name} — Giá ${displayPrice.isRange ? "từ " : ""}${formatPrice(displayPrice.price)}`;
+  const priceText = displayPrice.isRange
+    ? `${formatPrice(displayPrice.min)}-${formatPrice(displayPrice.max)}`
+    : formatPrice(displayPrice.price);
+  const title = `${product.name} — Giá ${priceText}`;
   const description = product.specs?.length
     ? product.specs.slice(0, 4).map(([label, value]) => `${label}: ${value}`).join(" · ")
     : `${product.name} chính hãng, giao COD toàn quốc.`;

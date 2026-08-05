@@ -5,9 +5,15 @@ import { revalidatePath } from "next/cache";
 import { slugify } from "@/lib/slugify";
 import { requireAdmin } from "@/lib/adminAuth";
 
+// Ngưỡng độ khớp mờ (pg_trgm, 0..1) để coi là "chắc chắn cùng 1 sản phẩm" — giống ngưỡng đã dùng
+// ở công cụ "Ghép ảnh Zalo" cũ (đã bỏ) khi còn dùng match_products_by_text().
+const FUZZY_MATCH_THRESHOLD = 0.3;
+
 // Bước chuẩn bị: nhận danh sách sản phẩm đã tách từ bài đăng Zalo (tên/giá/dòng máy — xem
-// NhapZaloForm.js), tự tạo slug + mã sản phẩm, và QUAN TRỌNG: kiểm tra trùng slug với sản phẩm
-// ĐÃ CÓ SẴN trong database trước khi commit.
+// NhapZaloForm.js), tự tạo slug + mã sản phẩm, và QUAN TRỌNG: kiểm tra trùng với sản phẩm ĐÃ CÓ
+// SẴN trong database trước khi commit — cả trùng TÊN Y HỆT (so theo slug) lẫn trùng GẦN GIỐNG
+// (so mờ bằng match_products_by_text(), pg_trgm — xem migration_015) vì caption dán lại 2 lần
+// hiếm khi giống nhau tuyệt đối từng ký tự (thêm/bớt icon, viết hoa khác, thêm mô tả...).
 //
 // Lý do cần bước riêng này: hàm commitProductsCsv() (dùng chung với chức năng nhập CSV) ghi dữ
 // liệu bằng upsert(onConflict: "slug") — nếu 1 sản phẩm mới vô tình trùng slug với sản phẩm cũ
@@ -37,12 +43,30 @@ export async function prepareZaloRows({ category, categoryCode, items }) {
   const takenSlugs = new Set(existingBySlug.keys());
   const seenInBatch = new Map(); // baseSlug -> tên item xuất hiện trước trong CÙNG lô đang dán
 
+  // So khớp mờ CHO TỪNG TÊN trước (song song, không phụ thuộc thứ tự) — chỉ dùng làm dự phòng cho
+  // item nào KHÔNG khớp slug y hệt, để không phải chờ tuần tự từng RPC 1.
+  const fuzzyResults = await Promise.all(
+    items.map((item) =>
+      supabaseAdmin
+        .rpc("match_products_by_text", { search_text: item.name, match_limit: 1 })
+        .then(({ data }) => data?.[0] || null)
+        .catch(() => null)
+    )
+  );
+
   const rows = [];
   const duplicates = [];
 
   items.forEach((item, i) => {
     const baseSlug = slugify(item.name) || `sp-${Date.now()}-${i}`;
-    const existingMatch = existingBySlug.get(baseSlug) || null;
+    let existingMatch = existingBySlug.get(baseSlug) || null;
+    // Không khớp slug y hệt -> thử khớp mờ theo tên (bắt được caption dán lại hơi khác chữ).
+    if (!existingMatch) {
+      const fuzzy = fuzzyResults[i];
+      if (fuzzy && fuzzy.score >= FUZZY_MATCH_THRESHOLD) {
+        existingMatch = { slug: fuzzy.slug, name: fuzzy.name, price: fuzzy.price, image_url: fuzzy.image_url };
+      }
+    }
     const batchMatchName = seenInBatch.get(baseSlug) || null;
     seenInBatch.set(baseSlug, item.name);
 

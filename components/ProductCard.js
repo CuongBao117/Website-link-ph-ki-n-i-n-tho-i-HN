@@ -92,8 +92,9 @@ export default function ProductCard({ product }) {
         <span className="prod-code">{product.code}</span>
         <div className="prod-name">{product.name}</div>
         <div className="prod-price">
-          {displayPrice.isRange && "Từ "}
-          {formatPrice(displayPrice.price)}
+          {displayPrice.isRange
+            ? `${formatPrice(displayPrice.min)}-${formatPrice(displayPrice.max)}`
+            : formatPrice(displayPrice.price)}
           {!displayPrice.isRange && product.oldPrice && <span className="old">{formatPrice(product.oldPrice)}</span>}
         </div>
       </div>

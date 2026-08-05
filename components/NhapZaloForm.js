@@ -839,23 +839,48 @@ export default function NhapZaloForm({ categoryGroups }) {
 
       {result && (
         <div
-          className="empty-state"
-          style={{ marginTop: 20, textAlign: "left", borderColor: result.success ? "var(--teal)" : "#B0503A" }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: 24,
+          }}
         >
-          <p style={{ fontWeight: 700, color: result.success ? "var(--teal)" : "#B0503A", margin: "0 0 8px", fontSize: 15 }}>
-            {result.success ? "Hoàn tất! ✓" : "Có sản phẩm xử lý lỗi:"}
-          </p>
-          <ul style={{ fontSize: 13, margin: 0, paddingLeft: 18 }}>
-            {result.items?.map((it, i) => (
-              <li key={i} style={{ color: it.success ? "var(--ink-soft)" : "#B0503A" }}>
-                {it.success
-                  ? it.mode === "existing"
-                    ? `✓ Đã cập nhật ảnh cho "${it.name}"`
-                    : `✓ Đã tạo mới "${it.name}"`
-                  : `✗ Lỗi "${it.name}": ${it.error}`}
-              </li>
-            ))}
-          </ul>
+          <div
+            className="empty-state"
+            style={{
+              textAlign: "left",
+              borderColor: result.success ? "var(--teal)" : "#B0503A",
+              background: "var(--bg, #fff)",
+              maxWidth: 480,
+              width: "100%",
+              maxHeight: "80vh",
+              overflowY: "auto",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.3)",
+            }}
+          >
+            <p style={{ fontWeight: 700, color: result.success ? "var(--teal)" : "#B0503A", margin: "0 0 10px", fontSize: 17 }}>
+              {result.success ? "Hoàn tất! ✓" : "Có sản phẩm xử lý lỗi:"}
+            </p>
+            <ul style={{ fontSize: 13, margin: 0, paddingLeft: 18 }}>
+              {result.items?.map((it, i) => (
+                <li key={i} style={{ color: it.success ? "var(--ink-soft)" : "#B0503A" }}>
+                  {it.success
+                    ? it.mode === "existing"
+                      ? `✓ Đã cập nhật ảnh cho "${it.name}"`
+                      : `✓ Đã tạo mới "${it.name}"`
+                    : `✗ Lỗi "${it.name}": ${it.error}`}
+                </li>
+              ))}
+            </ul>
+            <button type="button" className="btn-primary" style={{ marginTop: 16 }} onClick={() => setResult(null)}>
+              OK
+            </button>
+          </div>
         </div>
       )}
     </div>

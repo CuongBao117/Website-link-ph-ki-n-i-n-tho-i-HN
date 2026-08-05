@@ -88,7 +88,11 @@ export default function NhapZaloForm({ categoryGroups }) {
   // Ảnh chụp màn hình chọn 1 lần cho CẢ LÔ, sắp theo thời gian chụp (lastModified) — đúng thứ tự
   // admin chụp lần lượt từng bài đăng, khớp với thứ tự các khối text đã dán ở trên.
   const [photoFiles, setPhotoFiles] = useState([]); // [{file, previewUrl}], đã sort theo lastModified
-  const [photoCounts, setPhotoCounts] = useState([]); // số ảnh gán cho từng item, cùng độ dài với items
+  // Gán TỪNG ảnh vào 1 sản phẩm — photoAssignment[pi] = index trong items, hoặc -1 = chưa gán.
+  // Mặc định chia đều theo thứ tự (ảnh liền nhau -> cùng sản phẩm), nhưng sửa được TỪNG ảnh riêng lẻ
+  // (đổi dropdown ở ảnh đó) — không còn kiểu "sửa số lượng làm dồn toa" như trước.
+  const [photoAssignment, setPhotoAssignment] = useState([]);
+  const [zoomedPhoto, setZoomedPhoto] = useState(null); // previewUrl đang phóng to xem, null = đang đóng
   const [rows, setRows] = useState(null); // sau khi prepareZaloRows xong, sẵn sàng commit
   const [duplicates, setDuplicates] = useState([]); // cảnh báo trùng tên, ứng với index trong rows
   const [duplicatesAck, setDuplicatesAck] = useState(false); // admin đã xem cảnh báo trùng
@@ -102,18 +106,30 @@ export default function NhapZaloForm({ categoryGroups }) {
       ? VARIANT_PRESETS[Number(presetIndex)].variants
       : customVariants.split(",").map((s) => s.trim()).filter(Boolean);
 
-  // Cắt photoFiles theo thứ tự thành từng nhóm cho mỗi item, dựa trên photoCounts — KHÔNG đoán mò
-  // (không OCR/không tự dò ranh giới), hoàn toàn theo số ảnh admin đã xác nhận cho từng sản phẩm.
-  const photoGroups = [];
-  {
-    let cursor = 0;
-    for (const count of photoCounts) {
-      photoGroups.push(photoFiles.slice(cursor, cursor + count));
-      cursor += count;
+  // Chia đều photoAssignment ban đầu: N ảnh đầu -> sản phẩm 1, N ảnh kế -> sản phẩm 2... (đúng thứ
+  // tự thời gian chụp — đa số trường hợp đúng ngay). Dư ra (chia không hết) để "chưa gán" thay vì
+  // dồn hết vào sản phẩm cuối, để admin thấy rõ và tự gán tay thay vì lẫn nhầm.
+  function evenSplitAssignment(fileCount, itemCount) {
+    if (itemCount === 0) return Array(fileCount).fill(-1);
+    const perItem = Math.floor(fileCount / itemCount);
+    const assignment = [];
+    for (let i = 0; i < itemCount; i++) {
+      for (let k = 0; k < perItem; k++) assignment.push(i);
     }
+    while (assignment.length < fileCount) assignment.push(-1);
+    return assignment;
   }
-  const totalAssigned = photoCounts.reduce((a, b) => a + b, 0);
-  const leftoverPhotos = photoFiles.slice(totalAssigned);
+
+  // Nhóm ảnh theo sản phẩm, giữ lại vị trí gốc (pi) trong photoFiles — cần pi để sửa đúng ảnh khi
+  // admin đổi dropdown gán lại, và để dùng làm key ổn định khi render.
+  const photoGroupsWithIndex = items.map((_, i) =>
+    photoFiles.map((p, pi) => ({ p, pi })).filter(({ pi }) => photoAssignment[pi] === i)
+  );
+  const leftoverWithIndex = photoFiles
+    .map((p, pi) => ({ p, pi }))
+    .filter(({ pi }) => photoAssignment[pi] === undefined || photoAssignment[pi] === -1);
+  const photoGroups = photoGroupsWithIndex.map((g) => g.map(({ p }) => p));
+  const totalAssigned = photoFiles.length - leftoverWithIndex.length;
 
   function handleParse() {
     setError("");
@@ -127,21 +143,23 @@ export default function NhapZaloForm({ categoryGroups }) {
     setItems(parsed);
     // Ảnh đã chọn từ trước (nếu có) chia đều lại theo số sản phẩm mới tách được — admin chỉnh tay
     // tiếp ở bước gắn ảnh nếu chia đều không đúng thực tế (ảnh không đều nhau giữa các bài đăng).
-    const even = parsed.length ? Math.floor(photoFiles.length / parsed.length) : 0;
-    setPhotoCounts(parsed.map(() => even));
+    setPhotoAssignment(evenSplitAssignment(photoFiles.length, parsed.length));
   }
 
   function handlePhotoFilesChange(e) {
     const files = Array.from(e.target.files || []).sort((a, b) => a.lastModified - b.lastModified);
     const withPreview = files.map((file) => ({ file, previewUrl: URL.createObjectURL(file) }));
     setPhotoFiles(withPreview);
-    const even = items.length ? Math.floor(withPreview.length / items.length) : 0;
-    setPhotoCounts(items.map(() => even));
+    setPhotoAssignment(evenSplitAssignment(withPreview.length, items.length));
   }
 
-  function setPhotoCount(i, value) {
-    const n = Math.max(0, Math.round(Number(value) || 0));
-    setPhotoCounts((prev) => prev.map((c, idx) => (idx === i ? n : c)));
+  // Đổi gán cho ĐÚNG 1 ảnh (pi = vị trí trong photoFiles) — sửa ảnh gán sai mà không đụng ảnh khác.
+  function assignPhoto(pi, itemIndex) {
+    setPhotoAssignment((prev) => prev.map((v, idx) => (idx === pi ? itemIndex : v)));
+  }
+
+  function resplitEvenly() {
+    setPhotoAssignment(evenSplitAssignment(photoFiles.length, items.length));
   }
 
   function updateRowPrice(i, value) {
@@ -159,9 +177,9 @@ export default function NhapZaloForm({ categoryGroups }) {
 
   function removeItem(i) {
     setItems((prev) => prev.filter((_, idx) => idx !== i));
-    // Giữ photoCounts khớp index với items — xoá đúng vị trí, KHÔNG trả lại ảnh cho leftoverPhotos
-    // (admin có thể gán tay lại nếu cần, tránh logic tự động dồn ảnh gây khó đoán).
-    setPhotoCounts((prev) => prev.filter((_, idx) => idx !== i));
+    // Ảnh đang gán cho dòng bị xoá -> chuyển về "chưa gán" (không mất ảnh); các dòng SAU dòng bị
+    // xoá dịch lùi 1 index để khớp lại với items sau khi xoá.
+    setPhotoAssignment((prev) => prev.map((v) => (v === i ? -1 : v > i ? v - 1 : v)));
   }
 
   async function handlePrepare() {
@@ -173,7 +191,7 @@ export default function NhapZaloForm({ categoryGroups }) {
       return;
     }
     if (photoGroups.some((g) => g.length === 0)) {
-      setError("Có sản phẩm chưa gắn ảnh nào — chỉnh lại số ảnh ở bước gắn ảnh trước khi tiếp tục.");
+      setError("Có sản phẩm chưa gắn ảnh nào — gán thêm ảnh ở bước gắn ảnh trước khi tiếp tục.");
       return;
     }
     setIsBusy(true);
@@ -249,7 +267,7 @@ export default function NhapZaloForm({ categoryGroups }) {
       setText("");
       setItems([]);
       setPhotoFiles([]);
-      setPhotoCounts([]);
+      setPhotoAssignment([]);
       setRows(null);
       setDuplicates([]);
       setDuplicatesAck(false);
@@ -416,75 +434,88 @@ export default function NhapZaloForm({ categoryGroups }) {
               Bước 2 — Gắn ảnh cho từng sản phẩm:
             </p>
             <p style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 0, marginBottom: 10 }}>
-              Chọn hết ảnh chụp màn hình của cả lô cùng lúc (ảnh tự sắp theo thời gian chụp). Công cụ
-              chia đều theo số sản phẩm, sửa lại số ảnh từng dòng nếu chia chưa đúng — không đoán tự
-              động theo caption nữa, gõ đúng số ảnh là chắc chắn đúng ảnh.
+              Chọn hết ảnh chụp màn hình của cả lô cùng lúc (ảnh tự sắp theo thời gian chụp, chia đều
+              theo số sản phẩm). Bấm vào ảnh để xem to, đổi ô chọn dưới mỗi ảnh nếu gán nhầm sản
+              phẩm — sửa từng ảnh riêng lẻ, không ảnh hưởng các ảnh khác.
             </p>
-            <input type="file" accept="image/*" multiple onChange={handlePhotoFilesChange} />
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <input type="file" accept="image/*" multiple onChange={handlePhotoFilesChange} />
+              {photoFiles.length > 0 && (
+                <button type="button" className="cart-remove" onClick={resplitEvenly}>
+                  Chia đều lại
+                </button>
+              )}
+            </div>
             {photoFiles.length > 0 && (
               <p style={{ fontSize: 12.5, color: totalAssigned === photoFiles.length ? "var(--ink-soft)" : "#B0503A", marginTop: 8 }}>
                 Đã chọn {photoFiles.length} ảnh — đã gán {totalAssigned}
-                {totalAssigned !== photoFiles.length && ` (còn dư ${leftoverPhotos.length} ảnh chưa gán cho sản phẩm nào)`}.
+                {totalAssigned !== photoFiles.length && ` (còn ${leftoverWithIndex.length} ảnh chưa gán cho sản phẩm nào, xem cuối trang)`}.
               </p>
             )}
 
-            {photoFiles.length > 0 && (
-              <table className="cart-table" style={{ marginTop: 10 }}>
-                <thead>
-                  <tr>
-                    <th>Sản phẩm</th>
-                    <th>Số ảnh</th>
-                    <th>Ảnh đã gán</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((it, i) => (
-                    <tr key={i}>
-                      <td style={{ fontSize: 13 }}>{it.name}</td>
-                      <td>
-                        <input
-                          type="number"
-                          min={0}
-                          value={photoCounts[i] ?? 0}
-                          onChange={(e) => setPhotoCount(i, e.target.value)}
-                          style={{ width: 60, border: "1px solid var(--line)", borderRadius: "var(--radius)", padding: "6px 8px", fontSize: 13.5 }}
+            {photoFiles.length > 0 &&
+              items.map((it, i) => (
+                <div key={i} style={{ marginTop: 16 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                    {i + 1}. {it.name}{" "}
+                    {photoGroupsWithIndex[i].length === 0 && (
+                      <span style={{ fontSize: 12, fontWeight: 400, color: "#B0503A" }}>— chưa có ảnh</span>
+                    )}
+                  </p>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {photoGroupsWithIndex[i].map(({ p, pi }) => (
+                      <div key={pi} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                        <img
+                          src={p.previewUrl}
+                          alt=""
+                          onClick={() => setZoomedPhoto(p.previewUrl)}
+                          style={{ width: 64, height: 64, objectFit: "cover", borderRadius: "var(--radius)", cursor: "zoom-in", border: "1px solid var(--line)" }}
                         />
-                      </td>
-                      <td>
-                        {(photoGroups[i] || []).length === 0 ? (
-                          <span style={{ fontSize: 12, color: "#B0503A" }}>Chưa có ảnh</span>
-                        ) : (
-                          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", maxWidth: 260 }}>
-                            {(photoGroups[i] || []).map((p, pi) => (
-                              <img
-                                key={pi}
-                                src={p.previewUrl}
-                                alt=""
-                                style={{ width: 40, height: 40, objectFit: "cover", borderRadius: "var(--radius)" }}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+                        <select
+                          value={i}
+                          onChange={(e) => assignPhoto(pi, Number(e.target.value))}
+                          style={{ fontSize: 11, width: 90, border: "1px solid var(--line)", borderRadius: 6, padding: "2px 2px" }}
+                        >
+                          <option value={-1}>— Chưa gán —</option>
+                          {items.map((opt, optIdx) => (
+                            <option key={optIdx} value={optIdx}>
+                              {optIdx + 1}. {opt.name.slice(0, 16)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
 
-            {leftoverPhotos.length > 0 && (
-              <div style={{ marginTop: 10 }}>
-                <p style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 4 }}>
-                  Ảnh chưa gán cho sản phẩm nào (tăng &quot;Số ảnh&quot; ở dòng tương ứng để nhận thêm):
+            {leftoverWithIndex.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: "#B0503A", marginBottom: 6 }}>
+                  Ảnh chưa gán cho sản phẩm nào:
                 </p>
-                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                  {leftoverPhotos.map((p, pi) => (
-                    <img
-                      key={pi}
-                      src={p.previewUrl}
-                      alt=""
-                      style={{ width: 40, height: 40, objectFit: "cover", borderRadius: "var(--radius)", border: "1.5px solid #B0503A" }}
-                    />
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {leftoverWithIndex.map(({ p, pi }) => (
+                    <div key={pi} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                      <img
+                        src={p.previewUrl}
+                        alt=""
+                        onClick={() => setZoomedPhoto(p.previewUrl)}
+                        style={{ width: 64, height: 64, objectFit: "cover", borderRadius: "var(--radius)", cursor: "zoom-in", border: "1.5px solid #B0503A" }}
+                      />
+                      <select
+                        value={-1}
+                        onChange={(e) => assignPhoto(pi, Number(e.target.value))}
+                        style={{ fontSize: 11, width: 90, border: "1px solid var(--line)", borderRadius: 6, padding: "2px 2px" }}
+                      >
+                        <option value={-1}>— Chưa gán —</option>
+                        {items.map((opt, optIdx) => (
+                          <option key={optIdx} value={optIdx}>
+                            {optIdx + 1}. {opt.name.slice(0, 16)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -494,6 +525,29 @@ export default function NhapZaloForm({ categoryGroups }) {
           <button type="button" className="btn-primary" onClick={handlePrepare} disabled={isBusy} style={{ marginTop: 20 }}>
             {isBusy ? "Đang xử lý..." : "Kiểm tra trùng & chuẩn bị lưu →"}
           </button>
+        </div>
+      )}
+
+      {zoomedPhoto && (
+        <div
+          onClick={() => setZoomedPhoto(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.82)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            cursor: "zoom-out",
+            padding: 24,
+          }}
+        >
+          <img
+            src={zoomedPhoto}
+            alt=""
+            style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: 10, boxShadow: "0 10px 40px rgba(0,0,0,0.5)" }}
+          />
         </div>
       )}
 

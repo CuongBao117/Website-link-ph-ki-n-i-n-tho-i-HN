@@ -97,8 +97,9 @@ export default function NhapZaloForm({ categoryGroups }) {
   const [zoomedPhoto, setZoomedPhoto] = useState(null); // previewUrl đang phóng to xem, null = đang đóng
   const [rows, setRows] = useState(null); // sau khi prepareZaloRows xong, sẵn sàng commit
   const [duplicates, setDuplicates] = useState([]); // cảnh báo trùng tên, ứng với index trong rows
-  const [duplicatesAck, setDuplicatesAck] = useState(false); // admin đã xem cảnh báo trùng
+  const [duplicatesAck, setDuplicatesAck] = useState(false); // admin đã xem cảnh báo trùng CẦN xác nhận
   const [duplicateChoice, setDuplicateChoice] = useState({}); // index -> "existing" | "new"
+  const [priceChoice, setPriceChoice] = useState({}); // index -> "new" | "keep" — khi giá dán vào khác giá đang lưu
   const [isBusy, setIsBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
@@ -132,6 +133,23 @@ export default function NhapZaloForm({ categoryGroups }) {
     .filter(({ pi }) => photoAssignment[pi] === undefined || photoAssignment[pi] === -1);
   const photoGroups = photoGroupsWithIndex.map((g) => g.map(({ p }) => p));
   const totalAssigned = photoFiles.length - leftoverWithIndex.length;
+
+  // Trùng tên với sản phẩm ĐÃ CÓ ẢNH SẴN, hoặc trùng NGAY TRONG lô đang dán (chưa rõ sản phẩm nào
+  // là "gốc") -> bắt admin xác nhận rõ ràng trước khi lưu. Trùng với sản phẩm CHƯA CÓ ảnh nào thì
+  // không tính là rủi ro (chỉ đang bổ sung ảnh còn thiếu) — không bắt xác nhận thêm.
+  const blockingDuplicates = duplicates.filter((d) => d.existingHasImages || !d.existingSlug);
+  const safeDuplicates = duplicates.filter((d) => d.existingSlug && !d.existingHasImages);
+  // Giá dán vào khác giá đang lưu của sản phẩm đã có -> bắt chọn rõ "dùng giá mới" hay "giữ giá cũ"
+  // trước khi cho lưu, không tự động ghi đè giá.
+  function priceMismatch(d) {
+    if (!d.existingSlug || !rows) return false;
+    const row = rows[d.index];
+    return row && Number(row.price) !== Number(d.existingPrice);
+  }
+  const pendingPriceChoices = duplicates.filter(
+    (d) => duplicateChoice[d.index] === "existing" && priceMismatch(d) && !priceChoice[d.index]
+  );
+  const canCommit = Boolean(rows?.length) && (blockingDuplicates.length === 0 || duplicatesAck) && pendingPriceChoices.length === 0;
 
   function handleParse() {
     setError("");
@@ -216,6 +234,7 @@ export default function NhapZaloForm({ categoryGroups }) {
       setRows(res.rows);
       setDuplicates(res.duplicates || []);
       setDuplicatesAck(false);
+      setPriceChoice({});
       // Trùng với sản phẩm ĐÃ CÓ SẴN -> mặc định "cập nhật ảnh cho sản phẩm đó" (an toàn hơn, tránh
       // tạo trùng); trùng NGAY TRONG lô đang dán (chưa có existingSlug, sản phẩm kia còn chưa tồn
       // tại) thì bắt buộc "tạo mới" vì chưa có gì để gắn thêm ảnh vào.
@@ -232,8 +251,7 @@ export default function NhapZaloForm({ categoryGroups }) {
   }
 
   async function handleCommit() {
-    if (!rows?.length) return;
-    if (duplicates.length > 0 && !duplicatesAck) return;
+    if (!canCommit) return;
     setIsBusy(true);
     const categoryOption = categoryGroups.flatMap((g) => g.categories).find((c) => c.slug === category);
     const perItem = [];
@@ -247,7 +265,12 @@ export default function NhapZaloForm({ categoryGroups }) {
         if (useExisting) {
           const formData = new FormData();
           formData.set("slug", dupInfo.existingSlug);
-          formData.set("price", String(row.price));
+          // Chỉ gửi giá mới nếu KHÔNG lệch giá đang lưu, hoặc admin đã chủ động chọn "dùng giá
+          // mới" khi có lệch — giữ nguyên giá cũ nếu admin chọn "giữ giá cũ", không âm thầm ghi đè.
+          const mismatch = priceMismatch(dupInfo);
+          if (!mismatch || priceChoice[i] === "new") {
+            formData.set("price", String(row.price));
+          }
           files.forEach((f) => formData.append("images", f));
           const res = await attachZaloPhotos(formData);
           perItem.push({ name: row.name, success: res.success, error: res.error, mode: "existing" });
@@ -278,6 +301,7 @@ export default function NhapZaloForm({ categoryGroups }) {
       setDuplicates([]);
       setDuplicatesAck(false);
       setDuplicateChoice({});
+      setPriceChoice({});
     }
     setIsBusy(false);
   }
@@ -572,7 +596,14 @@ export default function NhapZaloForm({ categoryGroups }) {
             bước trước, không cần qua &quot;Gán ảnh hàng loạt&quot; riêng nữa.
           </p>
 
-          {duplicates.length > 0 && (
+          {safeDuplicates.length > 0 && (
+            <p style={{ fontSize: 12.5, color: "var(--ink-soft)", marginBottom: 14 }}>
+              ℹ️ {safeDuplicates.length} sản phẩm trùng tên với sản phẩm đã có sẵn NHƯNG chưa có ảnh nào —
+              tự động cập nhật thêm ảnh, không cần xác nhận thêm.
+            </p>
+          )}
+
+          {blockingDuplicates.length > 0 && (
             <div
               style={{
                 border: "1.5px solid #B0503A",
@@ -583,11 +614,11 @@ export default function NhapZaloForm({ categoryGroups }) {
               }}
             >
               <p style={{ fontWeight: 600, color: "#B0503A", margin: "0 0 6px", fontSize: 13.5 }}>
-                ⚠️ Phát hiện {duplicates.length} sản phẩm có thể đã trùng — xem kỹ trước khi tạo:
+                ⚠️ Phát hiện {blockingDuplicates.length} sản phẩm có thể đã trùng — xem kỹ trước khi tạo:
               </p>
               <ul style={{ fontSize: 13, paddingLeft: 18, margin: 0 }}>
-                {duplicates.map((d) => (
-                  <li key={d.index} style={{ marginBottom: 8 }}>
+                {blockingDuplicates.map((d) => (
+                  <li key={d.index} style={{ marginBottom: 10 }}>
                     <b>{d.name}</b>
                     {d.existingName && (
                       <> — trùng tên với sản phẩm đã có sẵn: <i>{d.existingName}</i> (giá hiện tại: {formatPrice(d.existingPrice)})</>
@@ -595,8 +626,21 @@ export default function NhapZaloForm({ categoryGroups }) {
                     {d.duplicateInSameBatch && (
                       <> — trùng tên với dòng “<i>{d.duplicateInSameBatch}</i>” cũng vừa dán trong lô này</>
                     )}
+                    {d.existingImages?.length > 0 && (
+                      <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+                        {d.existingImages.slice(0, 4).map((url, ui) => (
+                          <img
+                            key={ui}
+                            src={url}
+                            alt=""
+                            onClick={() => setZoomedPhoto(url)}
+                            style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 6, cursor: "zoom-in", border: "1px solid var(--line)" }}
+                          />
+                        ))}
+                      </div>
+                    )}
                     {d.existingSlug && (
-                      <div style={{ display: "flex", gap: 14, marginTop: 4 }}>
+                      <div style={{ display: "flex", gap: 14, marginTop: 6 }}>
                         <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", fontWeight: 400 }}>
                           <input
                             type="radio"
@@ -617,12 +661,39 @@ export default function NhapZaloForm({ categoryGroups }) {
                         </label>
                       </div>
                     )}
+                    {duplicateChoice[d.index] === "existing" && priceMismatch(d) && (
+                      <div style={{ border: "1px solid #B0503A", borderRadius: 6, padding: "6px 8px", marginTop: 6, background: "#fff" }}>
+                        <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                          Giá bài đăng ({formatPrice(rows[d.index].price)}) khác giá đang lưu ({formatPrice(d.existingPrice)}) — dùng giá nào?
+                        </div>
+                        <div style={{ display: "flex", gap: 14 }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", fontWeight: 400 }}>
+                            <input
+                              type="radio"
+                              name={`price-${d.index}`}
+                              checked={priceChoice[d.index] === "new"}
+                              onChange={() => setPriceChoice((prev) => ({ ...prev, [d.index]: "new" }))}
+                            />
+                            Dùng giá mới ({formatPrice(rows[d.index].price)})
+                          </label>
+                          <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", fontWeight: 400 }}>
+                            <input
+                              type="radio"
+                              name={`price-${d.index}`}
+                              checked={priceChoice[d.index] === "keep"}
+                              onChange={() => setPriceChoice((prev) => ({ ...prev, [d.index]: "keep" }))}
+                            />
+                            Giữ giá cũ ({formatPrice(d.existingPrice)})
+                          </label>
+                        </div>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
               <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 13, cursor: "pointer" }}>
                 <input type="checkbox" checked={duplicatesAck} onChange={(e) => setDuplicatesAck(e.target.checked)} />
-                Tôi đã kiểm tra, vẫn muốn tạo các sản phẩm này (kể cả sản phẩm trùng tên)
+                Tôi đã kiểm tra, vẫn muốn tạo/cập nhật các sản phẩm này (kể cả sản phẩm trùng tên)
               </label>
             </div>
           )}
@@ -667,7 +738,7 @@ export default function NhapZaloForm({ categoryGroups }) {
               type="button"
               className="btn-primary"
               onClick={handleCommit}
-              disabled={isBusy || (duplicates.length > 0 && !duplicatesAck)}
+              disabled={isBusy || !canCommit}
             >
               {isBusy ? "Đang tạo..." : `Xác nhận tạo ${rows.length} sản phẩm`}
             </button>
@@ -679,6 +750,7 @@ export default function NhapZaloForm({ categoryGroups }) {
                 setDuplicates([]);
                 setDuplicatesAck(false);
                 setDuplicateChoice({});
+                setPriceChoice({});
               }}
               disabled={isBusy}
             >

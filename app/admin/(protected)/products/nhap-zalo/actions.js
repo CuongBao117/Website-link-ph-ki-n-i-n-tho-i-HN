@@ -29,7 +29,7 @@ export async function prepareZaloRows({ category, categoryCode, items }) {
 
   const { data: existingProducts, error: fetchError } = await supabaseAdmin
     .from("products")
-    .select("slug, name, price");
+    .select("slug, name, price, images, image_url");
   if (fetchError) {
     return { success: false, error: `Lỗi kiểm tra sản phẩm hiện có: ${fetchError.message}` };
   }
@@ -75,12 +75,23 @@ export async function prepareZaloRows({ category, categoryCode, items }) {
     });
 
     if (existingMatch || batchMatchName) {
+      const existingImages =
+        Array.isArray(existingMatch?.images) && existingMatch.images.length > 0
+          ? existingMatch.images
+          : existingMatch?.image_url
+          ? [existingMatch.image_url]
+          : [];
       duplicates.push({
         index: i,
         name: item.name,
         existingSlug: existingMatch?.slug || null,
         existingName: existingMatch?.name || null,
         existingPrice: existingMatch?.price ?? null,
+        // Sản phẩm trùng CHƯA có ảnh nào -> chỉ đang bổ sung ảnh, an toàn, không cần admin xác
+        // nhận thêm. Đã có ảnh rồi -> bắt xác nhận rõ ràng (kèm ảnh hiện tại để so sánh) trước khi
+        // gắn thêm/ghi đè giá, tránh gộp nhầm 2 sản phẩm khác nhau trùng tên.
+        existingImages,
+        existingHasImages: existingImages.length > 0,
         duplicateInSameBatch: batchMatchName,
       });
     }

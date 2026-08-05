@@ -7,6 +7,7 @@ import {
   attachZaloPhotos,
 } from "@/app/admin/(protected)/products/nhap-zalo/actions";
 import { VARIANT_PRESETS } from "@/lib/variantPresets";
+import { parsePriceOptionsText, formatPriceOptionsText } from "@/lib/priceOptions";
 import PriceInput from "@/components/PriceInput";
 
 function formatPrice(value) {
@@ -36,6 +37,25 @@ function cleanLine(line) {
     .replace(/^[\s•*\-–✅❌]+|[\s•*\-–✅❌]+$/g, "")
     .replace(/\s{2,}/g, " ")
     .trim();
+}
+
+// Dòng kiểu "Vỏ : 100k" / "Xương : 45k" — PHÂN LOẠI có giá riêng (khác dòng "Sỉ 90k" chỉ có 1 giá
+// duy nhất cho cả sản phẩm). Nhãn không được là "sỉ"/"giá" (các biến thể dấu OCR/gõ tay hay dùng)
+// vì đó là cách viết giá thường, không phải tên phân loại thật.
+const PRICE_LABEL_LINE = /^([^:|]{1,24}):\s*([\d.,]+\s*k?)/iu;
+const GENERIC_PRICE_WORD = /^(s[ỉiìịĩí]|gi[áàảãạa])$/i;
+
+function parsePricedOptions(lines) {
+  const options = [];
+  for (const line of lines) {
+    const m = line.match(PRICE_LABEL_LINE);
+    if (!m) continue;
+    const label = m[1].trim();
+    if (!label || GENERIC_PRICE_WORD.test(label)) continue;
+    const price = parsePrice(m[2]);
+    if (price) options.push({ name: label, price });
+  }
+  return options;
 }
 
 // Tách khối text dán vào thành từng sản phẩm. Ưu tiên tách theo dòng "---" nếu người dùng có
@@ -73,7 +93,18 @@ function parseZaloBlocks(text, defaultVariants) {
       if (fallback) price = parsePrice(fallback[1]);
     }
 
-    items.push({ name, price, variants: variantOverride || defaultVariants });
+    // >= 2 dòng "Tên : Giá" khác nhau -> đây là sản phẩm có NHIỀU PHÂN LOẠI GIÁ (vd "Vỏ: 100k" /
+    // "Xương: 45k"), không phải chỉ 1 dòng giá lẻ tẻ trùng hợp có dấu ":". Giá hiển thị mặc định
+    // (price) lấy theo phân loại ĐẦU TIÊN — admin vẫn sửa lại được ở bảng xem trước.
+    const priceOptions = parsePricedOptions(lines.slice(1).map((l) => cleanLine(l)));
+    const hasPriceOptions = priceOptions.length >= 2;
+
+    items.push({
+      name,
+      price: hasPriceOptions ? priceOptions[0].price : price,
+      variants: variantOverride || defaultVariants,
+      priceOptions: hasPriceOptions ? priceOptions : [],
+    });
   });
 
   return items;
@@ -195,6 +226,19 @@ export default function NhapZaloForm({ categoryGroups }) {
     updateItem(i, "variants", value.split(",").map((s) => s.trim()).filter(Boolean));
   }
 
+  function updateItemPriceOptionsText(i, text) {
+    const priceOptions = parsePriceOptionsText(text);
+    // Có phân loại hợp lệ -> giá hiển thị mặc định lấy theo phân loại ĐẦU TIÊN (khớp cách
+    // parseZaloBlocks tự tách lúc nãy) — vẫn giữ nguyên giá cũ nếu admin xoá hết phân loại.
+    setItems((prev) =>
+      prev.map((it, idx) =>
+        idx === i
+          ? { ...it, priceOptions, price: priceOptions.length > 0 ? priceOptions[0].price : it.price }
+          : it
+      )
+    );
+  }
+
   function removeItem(i) {
     setItems((prev) => prev.filter((_, idx) => idx !== i));
     // Ảnh đang gán cho dòng bị xoá -> chuyển về "chưa gán" (không mất ảnh); các dòng SAU dòng bị
@@ -225,7 +269,12 @@ export default function NhapZaloForm({ categoryGroups }) {
       const res = await prepareZaloRows({
         category,
         categoryCode: categoryOption?.code || "SP",
-        items: items.map((it) => ({ name: it.name, price: Number(it.price), variants: it.variants })),
+        items: items.map((it) => ({
+          name: it.name,
+          price: Number(it.price),
+          variants: it.variants,
+          priceOptions: it.priceOptions,
+        })),
       });
       if (!res.success) {
         setError(res.error || "Có lỗi khi chuẩn bị dữ liệu.");
@@ -281,6 +330,7 @@ export default function NhapZaloForm({ categoryGroups }) {
           formData.set("category", row.category);
           formData.set("categoryCode", categoryOption?.code || "SP");
           formData.set("variants", JSON.stringify(row.variants || []));
+          formData.set("priceOptions", JSON.stringify(row.price_options || []));
           files.forEach((f) => formData.append("images", f));
           const res = await createZaloProductWithPhotos(formData);
           perItem.push({ name: row.name, success: res.success, error: res.error, mode: "new" });
@@ -425,6 +475,7 @@ export default function NhapZaloForm({ categoryGroups }) {
               <tr>
                 <th>Tên sản phẩm</th>
                 <th>Giá bán (đ)</th>
+                <th>Phân loại có giá (không bắt buộc)</th>
                 <th>Dòng máy tương thích</th>
                 <th></th>
               </tr>
@@ -447,6 +498,23 @@ export default function NhapZaloForm({ categoryGroups }) {
                     />
                     {it.price === null && (
                       <div style={{ fontSize: 11, color: "#B0503A" }}>Không tự nhận ra giá — điền tay</div>
+                    )}
+                    {it.priceOptions?.length > 0 && (
+                      <div style={{ fontSize: 11, color: "var(--ink-soft)" }}>Giá của phân loại đầu tiên</div>
+                    )}
+                  </td>
+                  <td>
+                    <textarea
+                      defaultValue={formatPriceOptionsText(it.priceOptions)}
+                      onChange={(e) => updateItemPriceOptionsText(i, e.target.value)}
+                      rows={2}
+                      placeholder={"Vỏ|100000\nXương|45000"}
+                      style={{ width: 150, border: "1px solid var(--line)", borderRadius: "var(--radius)", padding: "6px 8px", fontSize: 12.5, fontFamily: "inherit" }}
+                    />
+                    {it.priceOptions?.length > 0 && (
+                      <div style={{ fontSize: 11, color: "var(--teal)" }}>
+                        Đã tự nhận diện {it.priceOptions.length} phân loại
+                      </div>
                     )}
                   </td>
                   <td>
@@ -703,6 +771,7 @@ export default function NhapZaloForm({ categoryGroups }) {
               <tr>
                 <th>Tên sản phẩm</th>
                 <th>Giá bán (đ)</th>
+                <th>Phân loại</th>
                 <th>Dòng máy</th>
                 <th>Ảnh</th>
                 <th>Xử lý</th>
@@ -721,6 +790,14 @@ export default function NhapZaloForm({ categoryGroups }) {
                         onChange={(digits) => updateRowPrice(i, digits)}
                         inputStyle={{ width: 130, border: "1px solid var(--line)", borderRadius: "var(--radius)", padding: "6px 34px 6px 8px", fontSize: 13.5 }}
                       />
+                      {r.price_options?.length > 0 && (
+                        <div style={{ fontSize: 11, color: "var(--ink-soft)" }}>Giá phân loại đầu</div>
+                      )}
+                    </td>
+                    <td style={{ fontSize: 12.5 }}>
+                      {r.price_options?.length > 0
+                        ? r.price_options.map((o) => `${o.name}: ${formatPrice(o.price)}`).join(", ")
+                        : "không có"}
                     </td>
                     <td>{r.variants?.length ? `${r.variants.length} dòng máy` : "không gắn dòng máy"}</td>
                     <td>{(photoGroups[i] || []).length} ảnh</td>
@@ -765,8 +842,8 @@ export default function NhapZaloForm({ categoryGroups }) {
           className="empty-state"
           style={{ marginTop: 20, textAlign: "left", borderColor: result.success ? "var(--teal)" : "#B0503A" }}
         >
-          <p style={{ fontWeight: 600, color: result.success ? "var(--teal)" : "#B0503A", margin: "0 0 8px" }}>
-            {result.success ? "Đã xử lý xong, kèm ảnh luôn:" : "Có sản phẩm xử lý lỗi:"}
+          <p style={{ fontWeight: 700, color: result.success ? "var(--teal)" : "#B0503A", margin: "0 0 8px", fontSize: 15 }}>
+            {result.success ? "Hoàn tất! ✓" : "Có sản phẩm xử lý lỗi:"}
           </p>
           <ul style={{ fontSize: 13, margin: 0, paddingLeft: 18 }}>
             {result.items?.map((it, i) => (

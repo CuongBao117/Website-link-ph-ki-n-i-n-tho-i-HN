@@ -53,6 +53,11 @@ export async function prepareZaloRows({ category, categoryCode, items }) {
     takenSlugs.add(slug);
 
     const variants = Array.isArray(item.variants) ? item.variants.filter(Boolean) : [];
+    // Phân loại có giá riêng (vd "Vỏ" 100k / "Xương" 45k, xem lib/priceOptions.js) — KHÁC variants
+    // (dòng máy tương thích) ở trên, độc lập hoàn toàn, không bắt buộc phải có.
+    const priceOptions = Array.isArray(item.priceOptions)
+      ? item.priceOptions.filter((o) => o && o.name && Number.isFinite(Number(o.price)) && Number(o.price) > 0)
+      : [];
     const code = `${categoryCode}-${Date.now().toString(36).toUpperCase()}${i}`;
 
     rows.push({
@@ -68,6 +73,7 @@ export async function prepareZaloRows({ category, categoryCode, items }) {
       variants,
       default_variant: variants[0] || null,
       specs: [],
+      price_options: priceOptions,
       // Ảnh gắn ở bước xác nhận cuối (xem createZaloProductWithPhotos/attachZaloPhotos bên dưới) —
       // ở đây chỉ chuẩn bị dữ liệu tên/giá/slug, chưa có ảnh.
       images: [],
@@ -137,6 +143,15 @@ export async function createZaloProductWithPhotos(formData) {
   } catch {
     variants = [];
   }
+  let priceOptions = [];
+  try {
+    const parsed = JSON.parse(formData.get("priceOptions") || "[]");
+    if (Array.isArray(parsed)) {
+      priceOptions = parsed.filter((o) => o && o.name && Number.isFinite(Number(o.price)) && Number(o.price) > 0);
+    }
+  } catch {
+    priceOptions = [];
+  }
 
   if (!name) return { success: false, error: "Thiếu tên sản phẩm." };
   if (!Number.isFinite(price) || price <= 0) return { success: false, error: "Giá bán không hợp lệ." };
@@ -170,6 +185,7 @@ export async function createZaloProductWithPhotos(formData) {
     variants,
     default_variant: variants[0] || null,
     specs: [],
+    price_options: priceOptions,
     images: uploadedUrls,
     image_url: uploadedUrls[0],
   });

@@ -33,6 +33,7 @@ export default async function EditProductPage({ params, searchParams }) {
     brand: product.brand,
     variants: product.variants,
     defaultVariant: product.default_variant,
+    priceOptions: product.price_options,
     specs: product.specs,
     imageUrl: product.image_url,
     images: Array.isArray(product.images) && product.images.length > 0

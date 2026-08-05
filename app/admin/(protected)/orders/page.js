@@ -144,7 +144,11 @@ export default async function AdminOrdersPage({ searchParams }) {
                   <td>
                     {(order.cart_items || []).map((item, i) => (
                       <div key={i} style={{ fontSize: 12.5, marginBottom: 4 }}>
-                        {item.name} ({item.variant}) × {item.qty}
+                        {item.name}
+                        {[item.priceOption, item.variant].filter(Boolean).length > 0
+                          ? ` (${[item.priceOption, item.variant].filter(Boolean).join(" · ")})`
+                          : ""}{" "}
+                        × {item.qty}
                       </div>
                     ))}
                   </td>

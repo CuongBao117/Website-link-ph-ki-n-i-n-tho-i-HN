@@ -39,6 +39,7 @@ function mapProductRow(row) {
     brand: row.brand || null,
     variants: row.variants || [],
     defaultVariant: row.default_variant,
+    priceOptions: row.price_options || [],
     specs: row.specs || [],
     images,
     imageUrl: images[0] || null, // ảnh đại diện — giữ lại để tương thích code cũ (ProductGrid, thẻ sản phẩm...)

@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { getEffectivePrice } from "@/lib/priceOptions";
 
 const CartContext = createContext(null);
 const STORAGE_KEY = "linhkien_cart";
@@ -27,10 +28,12 @@ export function CartProvider({ children }) {
     }
   }, [items, loaded]);
 
-  function addItem(product, variant, qty) {
+  // priceOption: tên phân loại có giá riêng đã chọn (vd "Vỏ"/"Xương"), null nếu sản phẩm không
+  // có phân loại giá — quyết định giá THẬT thêm vào giỏ (xem lib/priceOptions.getEffectivePrice).
+  function addItem(product, variant, qty, priceOption = null) {
     setItems((prev) => {
       const idx = prev.findIndex(
-        (i) => i.slug === product.slug && i.variant === variant
+        (i) => i.slug === product.slug && i.variant === variant && (i.priceOption || null) === (priceOption || null)
       );
       if (idx >= 0) {
         const copy = [...prev];
@@ -43,27 +46,28 @@ export function CartProvider({ children }) {
           slug: product.slug,
           name: product.name,
           code: product.code,
-          price: product.price,
+          price: getEffectivePrice(product, priceOption),
           variant,
+          priceOption,
           qty,
         },
       ];
     });
   }
 
-  function updateQty(slug, variant, qty) {
+  function updateQty(slug, variant, qty, priceOption = null) {
     setItems((prev) =>
       prev.map((i) =>
-        i.slug === slug && i.variant === variant
+        i.slug === slug && i.variant === variant && (i.priceOption || null) === (priceOption || null)
           ? { ...i, qty: Math.max(1, qty) }
           : i
       )
     );
   }
 
-  function removeItem(slug, variant) {
+  function removeItem(slug, variant, priceOption = null) {
     setItems((prev) =>
-      prev.filter((i) => !(i.slug === slug && i.variant === variant))
+      prev.filter((i) => !(i.slug === slug && i.variant === variant && (i.priceOption || null) === (priceOption || null)))
     );
   }
 

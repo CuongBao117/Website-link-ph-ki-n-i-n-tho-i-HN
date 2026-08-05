@@ -17,7 +17,12 @@ export async function placeOrder({ items, customerName, phoneNumber, address, no
 
   const cleanItems = (items || [])
     .filter((i) => i && i.slug && i.qty > 0)
-    .map((i) => ({ slug: i.slug, variant: i.variant || null, qty: Math.max(1, Number(i.qty) || 1) }));
+    .map((i) => ({
+      slug: i.slug,
+      variant: i.variant || null,
+      priceOption: i.priceOption || null,
+      qty: Math.max(1, Number(i.qty) || 1),
+    }));
 
   if (cleanItems.length === 0) {
     return { success: false, error: "Giỏ hàng đang trống." };

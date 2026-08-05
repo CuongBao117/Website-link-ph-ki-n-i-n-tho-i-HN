@@ -30,7 +30,7 @@ export default function CheckoutForm({ userEmail }) {
     setError("");
 
     const res = await placeOrder({
-      items: items.map((i) => ({ slug: i.slug, variant: i.variant, qty: i.qty })),
+      items: items.map((i) => ({ slug: i.slug, variant: i.variant, priceOption: i.priceOption, qty: i.qty })),
       customerName: form.name,
       phoneNumber: form.phone,
       address: form.address,
@@ -129,9 +129,13 @@ export default function CheckoutForm({ userEmail }) {
         <div className="checkout-summary">
           <h3>Đơn hàng của bạn</h3>
           {items.map((item) => (
-            <div key={item.slug + item.variant} className="checkout-item">
+            <div key={item.slug + item.variant + (item.priceOption || "")} className="checkout-item">
               <span>
-                {item.name} ({item.variant}) x{item.qty}
+                {item.name}
+                {[item.priceOption, item.variant].filter(Boolean).length > 0
+                  ? ` (${[item.priceOption, item.variant].filter(Boolean).join(" · ")})`
+                  : ""}{" "}
+                x{item.qty}
               </span>
               <span>{formatPrice(item.price * item.qty)}</span>
             </div>

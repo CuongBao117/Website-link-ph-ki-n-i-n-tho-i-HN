@@ -37,9 +37,11 @@ export default async function NhapZaloPage() {
         </p>
         <p style={{ marginBottom: 0 }}>
           Copy caption từng bài (tên sản phẩm ở dòng đầu, dòng chứa <code>Sỉ ...k</code> ở dưới),
-          dán tất cả vào ô bên dưới — mỗi bài cách nhau 1 dòng trống hoặc <code>---</code>. Sản
-          phẩm tạo ra sẽ <b>chưa có ảnh</b> — dùng “Gán ảnh hàng loạt” ngay sau đó để gắn ảnh cho
-          từng sản phẩm.
+          dán tất cả vào ô bên dưới — mỗi bài cách nhau 1 dòng trống hoặc <code>---</code>. Sau khi
+          tách xong, chọn luôn ảnh chụp màn hình của cả lô (đúng thứ tự đã chụp) và gắn số ảnh cho
+          từng sản phẩm — công cụ tạo sản phẩm kèm ảnh trong 1 lần, không cần qua “Gán ảnh hàng
+          loạt” riêng nữa. Tên/giá lấy từ text dán tay nên luôn chính xác — không dùng OCR đọc ảnh
+          (dễ đọc sai/nhầm lẫn với chữ in trên vỏ máy hay badge dán trên ảnh).
         </p>
       </div>
 

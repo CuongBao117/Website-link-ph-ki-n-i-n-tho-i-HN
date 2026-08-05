@@ -97,7 +97,7 @@ export default async function OrderDetailPage({ params, searchParams }) {
             {items.map((it, i) => (
               <tr key={i}>
                 <td>{it.name}</td>
-                <td>{it.variant}</td>
+                <td>{[it.priceOption, it.variant].filter(Boolean).join(" · ") || "—"}</td>
                 <td>{it.qty}</td>
                 <td>{formatPrice(it.price)}</td>
                 <td>{formatPrice(it.price * it.qty)}</td>

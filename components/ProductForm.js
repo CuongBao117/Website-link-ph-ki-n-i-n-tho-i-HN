@@ -1,11 +1,13 @@
 import ProductImageManager from "@/components/ProductImageManager";
 import SlugField from "@/components/SlugField";
 import PriceInput from "@/components/PriceInput";
+import { formatPriceOptionsText } from "@/lib/priceOptions";
 
 export default function ProductForm({ action, categoryGroups, defaultValues, isEdit }) {
   const v = defaultValues || {};
   const specsText = (v.specs || []).map(([label, value]) => `${label}|${value}`).join("\n");
   const variantsText = (v.variants || []).join(", ");
+  const priceOptionsText = formatPriceOptionsText(v.priceOptions);
 
   // Sản phẩm đang sửa có thể đang thuộc 1 danh mục đã bị gỡ khỏi menu (mồ côi) — danh mục đó
   // không nằm trong categoryGroups nên sẽ không có option nào khớp. Phải tự thêm option cảnh
@@ -68,7 +70,7 @@ export default function ProductForm({ action, categoryGroups, defaultValues, isE
 
       <div style={{ display: "flex", gap: 14 }}>
         <div style={{ flex: 1 }}>
-          <label>Giá bán (đ)</label>
+          <label>Giá bán (đ) — dùng khi KHÔNG có phân loại riêng bên dưới</label>
           <PriceInput name="price" defaultValue={v.price} placeholder="890.000" required />
         </div>
         <div style={{ flex: 1 }}>
@@ -76,6 +78,18 @@ export default function ProductForm({ action, categoryGroups, defaultValues, isE
           <PriceInput name="oldPrice" defaultValue={v.oldPrice || ""} placeholder="1.050.000" />
         </div>
       </div>
+
+      <label>
+        Phân loại có giá riêng (không bắt buộc) — mỗi dòng 1 phân loại, dạng <code>Tên|Giá</code>.
+        Khách chọn phân loại nào tính đúng giá đó, giống chọn size quần áo. Để trống nếu sản phẩm
+        chỉ có 1 giá duy nhất (dùng ô &quot;Giá bán&quot; ở trên).
+      </label>
+      <textarea
+        name="priceOptions"
+        defaultValue={priceOptionsText}
+        rows="3"
+        placeholder={"Vỏ|100000\nXương|45000"}
+      />
 
       <label>Các dòng máy / phiên bản (cách nhau bằng dấu phẩy)</label>
       <input

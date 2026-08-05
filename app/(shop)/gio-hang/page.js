@@ -45,20 +45,20 @@ export default function CartPage() {
         </thead>
         <tbody>
           {items.map((item) => (
-            <tr key={item.slug + item.variant}>
+            <tr key={item.slug + item.variant + (item.priceOption || "")}>
               <td>
                 {item.name}
                 <div className="prod-code">{item.code}</div>
               </td>
-              <td>{item.variant}</td>
+              <td>{[item.priceOption, item.variant].filter(Boolean).join(" · ") || "—"}</td>
               <td>{formatPrice(item.price)}</td>
               <td>
                 <div className="qty-box">
-                  <button onClick={() => updateQty(item.slug, item.variant, item.qty - 1)}>
+                  <button onClick={() => updateQty(item.slug, item.variant, item.qty - 1, item.priceOption)}>
                     –
                   </button>
                   <span>{item.qty}</span>
-                  <button onClick={() => updateQty(item.slug, item.variant, item.qty + 1)}>
+                  <button onClick={() => updateQty(item.slug, item.variant, item.qty + 1, item.priceOption)}>
                     +
                   </button>
                 </div>
@@ -67,7 +67,7 @@ export default function CartPage() {
               <td>
                 <button
                   className="cart-remove"
-                  onClick={() => removeItem(item.slug, item.variant)}
+                  onClick={() => removeItem(item.slug, item.variant, item.priceOption)}
                 >
                   Xoá
                 </button>

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { slugify } from "@/lib/slugify";
 import { isAdminAuthed, requireAdmin } from "@/lib/adminAuth";
+import { parsePriceOptionsText } from "@/lib/priceOptions";
 
 
 function parseVariants(text) {
@@ -84,6 +85,7 @@ async function buildProductPayload(formData, slug) {
     variants,
     default_variant: formData.get("defaultVariant")?.trim() || variants[0] || null,
     specs: parseSpecs(formData.get("specs")),
+    price_options: parsePriceOptionsText(formData.get("priceOptions")),
     images,
     image_url: images[0] || null, // ảnh đại diện — vẫn giữ cột này để tương thích các chỗ code cũ
   };

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProductBySlug, getRelatedProducts, formatPrice } from "@/data/products";
+import { getDisplayPrice } from "@/lib/priceOptions";
 import ProductPurchasePanel from "@/components/ProductPurchasePanel";
 import ProductGrid from "@/components/ProductGrid";
 import ProductGallery from "@/components/ProductGallery";
@@ -12,7 +13,11 @@ export async function generateMetadata({ params }) {
   const product = await getProductBySlug(params.slug);
   if (!product) return {};
 
-  const title = `${product.name} — Giá ${formatPrice(product.price)}`;
+  const displayPrice = getDisplayPrice(product);
+  const priceText = displayPrice.isRange
+    ? `${formatPrice(displayPrice.min)}-${formatPrice(displayPrice.max)}`
+    : formatPrice(displayPrice.price);
+  const title = `${product.name} — Giá ${priceText}`;
   const description = product.specs?.length
     ? product.specs.slice(0, 4).map(([label, value]) => `${label}: ${value}`).join(" · ")
     : `${product.name} chính hãng, giao COD toàn quốc.`;
@@ -36,9 +41,10 @@ export default async function ProductPage({ params }) {
   if (!product) return notFound();
 
   const related = await getRelatedProducts(product);
-  const discount = product.oldPrice
-    ? Math.round(100 - (product.price / product.oldPrice) * 100)
-    : null;
+  const hasPriceOptions = product.priceOptions?.length > 0;
+  const displayPrice = getDisplayPrice(product);
+  const discount =
+    !hasPriceOptions && product.oldPrice ? Math.round(100 - (product.price / product.oldPrice) * 100) : null;
   const outOfStock = (product.stock ?? 0) <= 0;
 
   const productJsonLd = {
@@ -55,7 +61,7 @@ export default async function ProductPage({ params }) {
       "@type": "Offer",
       url: `${SITE_URL}/san-pham/${product.slug}`,
       priceCurrency: "VND",
-      price: product.price,
+      price: displayPrice.price,
       availability: outOfStock
         ? "https://schema.org/OutOfStock"
         : "https://schema.org/InStock",
@@ -80,11 +86,17 @@ export default async function ProductPage({ params }) {
           <span className="pdp-code">MÃ SP: {product.code}</span>
           <h1>{product.name}</h1>
           <div className="pdp-price-row">
-            <div className="pdp-price">{formatPrice(product.price)}</div>
-            {product.oldPrice && (
+            {/* Có phân loại nhiều giá -> ProductPurchasePanel (client) tự hiện giá theo lựa chọn
+                đang chọn, không hiện giá tĩnh ở đây nữa để tránh 2 giá khác nhau cùng lúc. */}
+            {!hasPriceOptions && (
               <>
-                <div className="pdp-price-old">{formatPrice(product.oldPrice)}</div>
-                <div className="pdp-badge">-{discount}%</div>
+                <div className="pdp-price">{formatPrice(product.price)}</div>
+                {product.oldPrice && (
+                  <>
+                    <div className="pdp-price-old">{formatPrice(product.oldPrice)}</div>
+                    <div className="pdp-badge">-{discount}%</div>
+                  </>
+                )}
               </>
             )}
             {outOfStock && (

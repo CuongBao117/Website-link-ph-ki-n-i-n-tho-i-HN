@@ -81,7 +81,9 @@ function parseZaloBlocks(text, defaultVariants) {
 
 export default function NhapZaloForm({ categoryGroups }) {
   const [text, setText] = useState("");
-  const [category, setCategory] = useState(categoryGroups[0]?.categories[0]?.slug || "");
+  // Để trống mặc định — bắt admin tự chọn danh mục cho lô, tránh trường hợp quên chỉnh mà lỡ tay
+  // để nguyên danh mục mặc định (danh mục áp dụng cho CẢ LÔ, chọn nhầm ảnh hưởng mọi sản phẩm).
+  const [category, setCategory] = useState("");
   const [presetIndex, setPresetIndex] = useState("");
   const [customVariants, setCustomVariants] = useState("");
   const [items, setItems] = useState([]);
@@ -183,6 +185,10 @@ export default function NhapZaloForm({ categoryGroups }) {
   }
 
   async function handlePrepare() {
+    if (!category) {
+      setError("Chưa chọn danh mục cho lô hàng — chọn ở phần trên trước khi tiếp tục.");
+      return;
+    }
     const invalid = items.some(
       (it) => !it.name || !Number.isFinite(Number(it.price)) || Number(it.price) <= 0
     );
@@ -317,8 +323,14 @@ export default function NhapZaloForm({ categoryGroups }) {
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            style={{ border: "1.5px solid var(--line)", borderRadius: "var(--radius)", padding: "8px 10px", fontSize: 13.5 }}
+            style={{
+              border: category ? "1.5px solid var(--line)" : "1.5px solid #B0503A",
+              borderRadius: "var(--radius)",
+              padding: "8px 10px",
+              fontSize: 13.5,
+            }}
           >
+            <option value="">— Chọn danh mục —</option>
             {categoryGroups.map((g) => (
               <optgroup key={g.slug} label={g.name}>
                 {g.categories.map((c) => (
@@ -371,9 +383,10 @@ export default function NhapZaloForm({ categoryGroups }) {
       </p>
 
       <div style={{ marginTop: 16 }}>
-        <button type="button" className="btn-primary" onClick={handleParse} disabled={!text.trim()}>
+        <button type="button" className="btn-primary" onClick={handleParse} disabled={!text.trim() || !category}>
           Tách thành danh sách sản phẩm
         </button>
+        {!category && <span style={{ fontSize: 12, color: "#B0503A", marginLeft: 10 }}>Chưa chọn danh mục ở trên</span>}
       </div>
 
       {error && <p style={{ color: "#B0503A", fontSize: 13.5, marginTop: 12 }}>{error}</p>}
@@ -474,12 +487,12 @@ export default function NhapZaloForm({ categoryGroups }) {
                         <select
                           value={i}
                           onChange={(e) => assignPhoto(pi, Number(e.target.value))}
-                          style={{ fontSize: 11, width: 90, border: "1px solid var(--line)", borderRadius: 6, padding: "2px 2px" }}
+                          style={{ fontSize: 13.5, width: 170, border: "1.5px solid var(--line)", borderRadius: 6, padding: "5px 6px" }}
                         >
                           <option value={-1}>— Chưa gán —</option>
                           {items.map((opt, optIdx) => (
                             <option key={optIdx} value={optIdx}>
-                              {optIdx + 1}. {opt.name.slice(0, 16)}
+                              {optIdx + 1}. {opt.name.slice(0, 28)}
                             </option>
                           ))}
                         </select>
@@ -506,12 +519,12 @@ export default function NhapZaloForm({ categoryGroups }) {
                       <select
                         value={-1}
                         onChange={(e) => assignPhoto(pi, Number(e.target.value))}
-                        style={{ fontSize: 11, width: 90, border: "1px solid var(--line)", borderRadius: 6, padding: "2px 2px" }}
+                        style={{ fontSize: 13.5, width: 170, border: "1.5px solid var(--line)", borderRadius: 6, padding: "5px 6px" }}
                       >
                         <option value={-1}>— Chưa gán —</option>
                         {items.map((opt, optIdx) => (
                           <option key={optIdx} value={optIdx}>
-                            {optIdx + 1}. {opt.name.slice(0, 16)}
+                            {optIdx + 1}. {opt.name.slice(0, 28)}
                           </option>
                         ))}
                       </select>

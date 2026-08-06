@@ -13,6 +13,7 @@ export default function CheckoutForm({ userEmail }) {
   const [submitted, setSubmitted] = useState(false);
   const [orderResult, setOrderResult] = useState(null);
   const [error, setError] = useState("");
+  const [phoneInvalid, setPhoneInvalid] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Ước tính hiển thị trước khi đặt — số THẬT (không thể bị sửa qua trình duyệt) được tính lại
@@ -22,6 +23,7 @@ export default function CheckoutForm({ userEmail }) {
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
+    if (e.target.name === "phone" && phoneInvalid) setPhoneInvalid(false);
   }
 
   async function handleSubmit(e) {
@@ -29,10 +31,12 @@ export default function CheckoutForm({ userEmail }) {
     if (loading) return;
 
     if (!isValidVNPhone(form.phone)) {
+      setPhoneInvalid(true);
       setError("Số điện thoại không hợp lệ — vui lòng nhập đúng định dạng (VD: 0912345678).");
       return;
     }
 
+    setPhoneInvalid(false);
     setLoading(true);
     setError("");
 
@@ -85,7 +89,7 @@ export default function CheckoutForm({ userEmail }) {
   }
 
   return (
-    <main>
+    <main className="checkout-page">
       <div className="section-head">
         <h2>Đặt hàng — Thanh toán COD</h2>
         <span className="idx">{items.length} SẢN PHẨM</span>
@@ -98,7 +102,7 @@ export default function CheckoutForm({ userEmail }) {
       )}
 
       <div className="checkout-grid">
-        <form className="checkout-form" onSubmit={handleSubmit}>
+        <form id="checkout-form" className="checkout-form" onSubmit={handleSubmit}>
           <label>Họ và tên</label>
           <input required name="name" value={form.name} onChange={handleChange} placeholder="Nguyễn Văn A" />
 
@@ -111,6 +115,7 @@ export default function CheckoutForm({ userEmail }) {
             value={form.phone}
             onChange={handleChange}
             placeholder="09xxxxxxxx"
+            aria-invalid={phoneInvalid}
           />
 
           <label>Địa chỉ giao hàng</label>
@@ -125,11 +130,7 @@ export default function CheckoutForm({ userEmail }) {
           <label>Ghi chú (không bắt buộc)</label>
           <textarea name="note" value={form.note} onChange={handleChange} rows="3" />
 
-          {error && (
-            <div className="empty-state" style={{ color: "#B0503A", textAlign: "left", padding: 14 }}>
-              {error}
-            </div>
-          )}
+          {error && <div className="form-error">{error}</div>}
 
           <button
             type="submit"
@@ -172,6 +173,18 @@ export default function CheckoutForm({ userEmail }) {
             <strong>{formatPrice(estimatedTotal)}</strong>
           </div>
         </div>
+      </div>
+
+      {/* Chỉ hiện trên mobile (xem CSS) — khách luôn thấy tổng tiền + đặt được hàng ngay mà
+          không cần cuộn xuống cuối form. Bấm nút này submit đúng #checkout-form ở trên. */}
+      <div className="checkout-sticky-bar">
+        <div className="checkout-sticky-total">
+          <span>Tổng cộng</span>
+          <strong>{formatPrice(estimatedTotal)}</strong>
+        </div>
+        <button type="submit" form="checkout-form" className="btn-primary" disabled={loading}>
+          {loading ? "Đang xử lý..." : "Đặt hàng"}
+        </button>
       </div>
     </main>
   );

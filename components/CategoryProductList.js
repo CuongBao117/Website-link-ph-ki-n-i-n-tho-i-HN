@@ -43,6 +43,12 @@ export default function CategoryProductList({ products, totalCount, facets, page
   const [pendingMax, setPendingMax] = useState(urlMax);
 
   const hasFilters = urlBrand || urlVariant || urlMin || urlMax;
+
+  // Trên mobile, .filter-bar thu gọn mặc định (5-7 ô lọc xếp chồng thành 1 khối dài che hết
+  // sản phẩm nếu luôn mở) — mở sẵn nếu khách đã có bộ lọc active từ URL (vd bấm Lùi trình
+  // duyệt), để không "giấu" mất bộ lọc đang áp dụng. Trên desktop CSS luôn hiện .filter-bar,
+  // state này không ảnh hưởng gì (nút toggle chỉ hiện trên mobile — xem globals.css).
+  const [filtersOpen, setFiltersOpen] = useState(Boolean(hasFilters));
   const hasPendingChanges =
     pendingBrand !== urlBrand ||
     pendingVariant !== urlVariant ||
@@ -90,7 +96,17 @@ export default function CategoryProductList({ products, totalCount, facets, page
 
   return (
     <>
-      <div className="filter-bar">
+      <button
+        type="button"
+        className="filter-toggle"
+        onClick={() => setFiltersOpen((v) => !v)}
+        aria-expanded={filtersOpen}
+      >
+        Bộ lọc {hasFilters && <span className="filter-toggle-dot" aria-hidden="true" />}
+        <span aria-hidden="true">{filtersOpen ? "▴" : "▾"}</span>
+      </button>
+
+      <div className={`filter-bar ${filtersOpen ? "is-open" : ""}`}>
         {facets.brands.length > 0 && (
           <select className="sort-select" value={pendingBrand} onChange={(e) => setPendingBrand(e.target.value)}>
             <option value="">Tất cả hãng</option>

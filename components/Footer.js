@@ -1,8 +1,25 @@
 import Link from "next/link";
 
+const BADGES = [
+  { icon: "🚚", label: "Giao hàng COD toàn quốc" },
+  { icon: "🛡️", label: "Bảo hành dài" },
+  { icon: "✅", label: "Kiểm tra trước khi nhận hàng" },
+  { icon: "💬", label: "Tư vấn qua Zalo/Hotline" },
+];
+
 export default function Footer() {
   return (
     <footer className="site-footer">
+      <div className="foot-badges">
+        {BADGES.map((b) => (
+          <div key={b.label} className="foot-badge">
+            <span className="foot-badge-icon" aria-hidden="true">
+              {b.icon}
+            </span>
+            <span>{b.label}</span>
+          </div>
+        ))}
+      </div>
       <div className="foot-grid">
         <div>
           <h4>LINH KIỆN.STORE</h4>

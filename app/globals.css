@@ -1,7 +1,4 @@
 :root {
-  --font-display: "Times New Roman", Times, serif;
-  --font-body: "Times New Roman", Times, serif;
-  --font-mono: "Times New Roman", Times, serif;
   --bg: #f5f8ff;
   --panel: #ffffff;
   --ink: #0f172a;
@@ -29,7 +26,6 @@ body {
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: var(--font-body), serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -494,7 +490,7 @@ main {
 }
 .prod-thumb {
   position: relative;
-  aspect-ratio: 1 / 1;
+  height: 150px;
   background: var(--panel);
 }
 /* Hoạ tiết sọc chéo CHỈ dành cho trạng thái chưa có ảnh — trước đây áp cho mọi thẻ kể cả khi đã
@@ -514,7 +510,7 @@ main {
 }
 .prod-code {
   font-family: var(--font-mono), monospace;
-  font-size: 10px;
+  font-size: 11.5px;
   color: var(--ink-soft);
 }
 .prod-name {
@@ -1511,7 +1507,12 @@ nav.catnav.mega-nav {
   transition: opacity 0.15s;
 }
 @media (hover: hover) {
-  .prod-thumb:hover .prod-hover-actions {
+  /* Trigger là .prod-card:hover, KHÔNG PHẢI .prod-thumb:hover. .prod-card-stretched-link có
+     z-index:1 còn .prod-thumb không đặt z-index (auto) nên trong thứ tự stacking, link vô hình
+     đó thực ra nằm TRÊN .prod-thumb — con trỏ chuột "chạm" phải link trước, :hover không bao giờ
+     khớp .prod-thumb nên overlay không hiện. .prod-card là tổ tiên chung của cả link lẫn thumb,
+     :hover luôn nổi bọt lên tới nó bất kể phần tử nào thực sự nhận con trỏ bên trong thẻ. */
+  .prod-card:hover .prod-hover-actions {
     opacity: 1;
     visibility: visible;
   }
@@ -1719,7 +1720,7 @@ nav.catnav.mega-nav {
   background: #0054cc;
 }
 .floating-contact__zalo-text {
-  font-family: var(--font-body), serif;
+  font-family: Arial, Helvetica, sans-serif;
   font-weight: 800;
   font-size: 14px;
   font-style: italic;

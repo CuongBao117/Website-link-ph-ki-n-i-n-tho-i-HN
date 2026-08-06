@@ -1,27 +1,12 @@
 import Link from "next/link";
-
-const BADGES = [
-  { icon: "🚚", label: "Giao hàng COD toàn quốc" },
-  { icon: "🛡️", label: "Bảo hành dài" },
-  { icon: "✅", label: "Kiểm tra trước khi nhận hàng" },
-  { icon: "💬", label: "Tư vấn qua Zalo/Hotline" },
-];
+import Image from "next/image";
 
 export default function Footer() {
   return (
     <footer className="site-footer">
-      <div className="foot-badges">
-        {BADGES.map((b) => (
-          <div key={b.label} className="foot-badge">
-            <span className="foot-badge-icon" aria-hidden="true">
-              {b.icon}
-            </span>
-            <span>{b.label}</span>
-          </div>
-        ))}
-      </div>
       <div className="foot-grid">
         <div>
+          <Image src="/logo.png" alt="LINH KIỆN.STORE" width={44} height={44} className="foot-logo" />
           <h4>LINH KIỆN.STORE</h4>
           <p>
             Chuyên linh kiện thay thế điện thoại &amp; phụ kiện điện tử: loa, tai
@@ -41,6 +26,11 @@ export default function Footer() {
           <p>Hướng dẫn đặt hàng COD</p>
         </div>
         <div>
+          <h4>ĐỊA CHỈ</h4>
+          <p>Miền Bắc: Vân Xuân, Vĩnh Tường, Vĩnh Phúc</p>
+          <p>Miền Nam: Đạ Ròn, Đơn Dương, Lâm Đồng</p>
+        </div>
+        <div>
           <h4>LIÊN HỆ</h4>
           <p>Hotline: 0357 105 530</p>
           <p>
@@ -50,8 +40,6 @@ export default function Footer() {
             </a>
           </p>
           <p>Email: hotro@linhkien.store</p>
-          <p>Miền Bắc: Vân Xuân, Vĩnh Tường, Vĩnh Phúc</p>
-          <p>Miền Nam: Đạ Ròn, Đơn Dương, Lâm Đồng</p>
         </div>
       </div>
       <div className="foot-bottom">

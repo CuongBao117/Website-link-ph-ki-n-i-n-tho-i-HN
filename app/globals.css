@@ -392,6 +392,15 @@ main {
   font-size: 22px;
   margin: 0;
 }
+/* Riêng tiêu đề từng khối danh mục sản phẩm trên trang chủ (ProductGrid) — không áp cho h2 dùng
+   chung ở checkout/đăng nhập/admin... — mới cần khung màu nổi bật để tách rõ giữa các khối. */
+.section-head h2.prod-section-title {
+  padding: 6px 16px;
+  background: rgba(249, 115, 22, 0.1);
+  border: 1px solid var(--copper);
+  border-radius: var(--radius);
+  color: var(--copper-dark);
+}
 .section-head .idx {
   font-family: var(--font-mono), monospace;
   font-size: 12px;

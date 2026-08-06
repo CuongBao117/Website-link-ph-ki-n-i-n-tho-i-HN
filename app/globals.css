@@ -1456,6 +1456,43 @@ nav.catnav.mega-nav {
 .hero-banner-slide.is-active {
   opacity: 1;
 }
+.hero-banner-slide--brand {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 64px;
+  background: linear-gradient(135deg, var(--copper) 0%, var(--teal) 100%);
+}
+.hero-banner-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.hero-banner-brand-logo {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+  border-radius: 16px;
+  background: #fff;
+  padding: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+.hero-banner-brand-slogan {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+@media (max-width: 640px) {
+  .hero-banner-slide--brand {
+    justify-content: center;
+    padding-right: 0;
+  }
+}
 .hero-banner-dots {
   position: absolute;
   right: 20px;

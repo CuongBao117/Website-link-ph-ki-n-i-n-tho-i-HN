@@ -1,8 +1,11 @@
+// Topbar (Header.js) đã hiện cố định "Miễn phí vận chuyển từ 2.000.000đ" và "Hotline" — ticker
+// này không lặp lại 2 thông điệp đó nữa (từng đứng ngay sát nhau, đọc trùng thông tin 2 lần liền
+// trước khi thấy nội dung thật), chỉ thêm các thông điệp CHƯA có ở đâu khác trên trang.
 const ITEMS = [
-  "Miễn phí vận chuyển cho đơn từ 2.000.000đ",
   "Linh kiện chính hãng — bảo hành rõ ràng",
-  "Hotline / Zalo: 0357 105 530 — hỗ trợ 8:00–21:00 mỗi ngày",
   "Giao hàng COD toàn quốc, kiểm tra kỹ trước khi nhận",
+  "Đổi trả trong 7 ngày nếu sản phẩm lỗi",
+  "Tư vấn nhiệt tình qua Zalo/Hotline",
 ];
 
 export default function PromoTicker() {

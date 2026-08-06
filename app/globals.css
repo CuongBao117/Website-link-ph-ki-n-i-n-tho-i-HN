@@ -1220,6 +1220,41 @@ nav.catnav.mega-nav {
   background: var(--teal);
 }
 
+/* ===== Dải thông báo khuyến mãi chạy chữ ===== */
+.promo-ticker {
+  background: linear-gradient(90deg, var(--copper-dark), var(--copper));
+  color: #fff;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.promo-ticker__track {
+  display: inline-flex;
+  width: max-content;
+  animation: promo-ticker-scroll 28s linear infinite;
+}
+.promo-ticker:hover .promo-ticker__track {
+  animation-play-state: paused;
+}
+.promo-ticker__item {
+  padding: 8px 32px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+@keyframes promo-ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .promo-ticker__track {
+    animation: none;
+  }
+}
+
 /* ===== Nút nổi Hotline & Zalo ===== */
 .floating-contact {
   position: fixed;

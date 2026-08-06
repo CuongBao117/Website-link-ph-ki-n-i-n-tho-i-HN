@@ -2,6 +2,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import HomeShortcut from "@/components/HomeShortcut";
 import FloatingContact from "@/components/FloatingContact";
+import PromoTicker from "@/components/PromoTicker";
 import { CartProvider } from "@/context/CartContext";
 
 // Layout riêng cho toàn bộ trang bán hàng (route group không đổi URL). Admin sống ở
@@ -12,6 +13,7 @@ export default function ShopLayout({ children }) {
   return (
     <CartProvider>
       <Header />
+      <PromoTicker />
       {children}
       <Footer />
       <HomeShortcut />

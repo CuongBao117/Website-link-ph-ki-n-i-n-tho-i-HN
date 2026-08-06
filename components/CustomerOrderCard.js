@@ -114,7 +114,7 @@ export default function CustomerOrderCard({ order, productImages }) {
           </div>
 
           {canCancel && (
-            <div style={{ marginTop: 16, display: "flex", gap: 10, alignItems: "center" }}>
+            <div style={{ marginTop: 16, display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
               {!confirming ? (
                 <button type="button" className="cart-remove" onClick={() => setConfirming(true)} disabled={isPending}>
                   Huỷ đơn hàng

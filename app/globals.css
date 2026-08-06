@@ -263,6 +263,11 @@ main {
   border-radius: var(--radius);
   cursor: pointer;
 }
+.btn-primary:disabled,
+.btn-outline:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 .diagram-caption {
   text-align: center;
   font-family: var(--font-mono), monospace;
@@ -883,6 +888,10 @@ footer a {
   border: none;
   cursor: pointer;
   font-size: 16px;
+}
+.qty-box button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 .qty-box span {
   width: 40px;

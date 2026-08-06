@@ -106,7 +106,7 @@ export default async function ProductPage({ params }) {
             )}
           </div>
 
-          <ProductPurchasePanel product={product} />
+          <ProductPurchasePanel product={product} outOfStock={outOfStock} />
 
           <div className="pdp-trust">
             <div><span className="ok">✓</span>Giao hàng thu tiền tận nơi (COD) toàn quốc</div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 // Dropdown hiện/ẩn chủ yếu dựa vào CSS ":hover" (ổn định, không lo khoảng hở vài pixel
@@ -12,9 +12,24 @@ import Link from "next/link";
 // hardcode danh sách tên nhóm trong file này nữa — sửa tên nhóm giờ chỉ cần sửa ở /admin).
 export default function MegaMenu({ groups }) {
   const [openGroup, setOpenGroup] = useState(null);
+  const navRef = useRef(null);
+
+  // Trên thiết bị cảm ứng (không có hover), bấm trigger để mở panel dựa vào state "openGroup" —
+  // nhưng nếu khách chạm ra ngoài menu (không phải trigger khác, không phải link con) thì menu
+  // không tự đóng, treo mở mãi. Bắt click/tap ngoài vùng <nav> để tự đóng lại.
+  useEffect(() => {
+    if (!openGroup) return;
+    function handleOutsideClick(e) {
+      if (navRef.current && !navRef.current.contains(e.target)) {
+        setOpenGroup(null);
+      }
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [openGroup]);
 
   return (
-    <nav className="catnav mega-nav">
+    <nav className="catnav mega-nav" ref={navRef}>
       {groups.map((g) => (
         <div key={g.slug} className={`mega-group ${openGroup === g.slug ? "open" : ""}`}>
           <button

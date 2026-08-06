@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { formatPrice } from "@/data/products";
 
-export default function ProductPurchasePanel({ product }) {
+export default function ProductPurchasePanel({ product, outOfStock = false }) {
   const [variant, setVariant] = useState(product.defaultVariant || product.variants[0]);
   // Phân loại có giá riêng (vd "Vỏ" 100k / "Xương" 45k) — KHÁC dòng máy tương thích ở trên, đây
   // là lựa chọn quyết định GIÁ, giống chọn size quần áo. Mặc định chọn phân loại đầu tiên nếu có.
@@ -21,14 +21,16 @@ export default function ProductPurchasePanel({ product }) {
   // Không chọn số lượng ở đây nữa — luôn thêm 1, muốn mua nhiều hơn thì chỉnh trong giỏ hàng
   // (trang /gio-hang đã có sẵn nút +/-). Đơn giản hoá vì shop không quản lý tồn kho chi tiết.
   function handleAddToCart() {
+    if (outOfStock) return;
     addItem(product, variant, 1, priceOption);
     setAdded(true);
     setTimeout(() => setAdded(false), 1800);
   }
 
   function handleBuyNow() {
+    if (outOfStock) return;
     addItem(product, variant, 1, priceOption);
-    router.push("/gio-hang");
+    router.push("/dat-hang");
   }
 
   return (
@@ -66,11 +68,11 @@ export default function ProductPurchasePanel({ product }) {
       )}
 
       <div className="pdp-ctas">
-        <button className="btn-outline" onClick={handleAddToCart}>
-          {added ? "Đã thêm ✓" : "Thêm vào giỏ"}
+        <button className="btn-outline" onClick={handleAddToCart} disabled={outOfStock}>
+          {outOfStock ? "Hết hàng" : added ? "Đã thêm ✓" : "Thêm vào giỏ"}
         </button>
-        <button className="btn-primary" onClick={handleBuyNow}>
-          Mua ngay — Thanh toán COD
+        <button className="btn-primary" onClick={handleBuyNow} disabled={outOfStock}>
+          {outOfStock ? "Hết hàng" : "Mua ngay — Thanh toán COD"}
         </button>
       </div>
     </>

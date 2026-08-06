@@ -54,7 +54,10 @@ export default function CartPage() {
               <td>{formatPrice(item.price)}</td>
               <td>
                 <div className="qty-box">
-                  <button onClick={() => updateQty(item.slug, item.variant, item.qty - 1, item.priceOption)}>
+                  <button
+                    onClick={() => updateQty(item.slug, item.variant, item.qty - 1, item.priceOption)}
+                    disabled={item.qty <= 1}
+                  >
                     –
                   </button>
                   <span>{item.qty}</span>

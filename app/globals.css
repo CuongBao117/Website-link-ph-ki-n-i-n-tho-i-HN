@@ -478,18 +478,25 @@ main {
   border-color: var(--copper);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
 }
-/* Thẻ sản phẩm KHÔNG còn là 1 thẻ <a> bao trọn nữa — .prod-card-link chỉ bọc phần ảnh+tên+giá
-   (dẫn tới trang chi tiết), còn .prod-quick-add là nút anh em riêng đè lên góc ảnh, để không còn
-   button lồng trong a (xem giải thích ở khối "Nút thêm nhanh" bên dưới). */
-.prod-card-link {
-  display: block;
-  cursor: pointer;
-  text-decoration: none;
-  color: var(--ink);
+/* Thẻ sản phẩm dùng kiểu "stretched link": .prod-card-stretched-link phủ TUYỆT ĐỐI kín cả thẻ
+   (vô hình — không nền/không chữ nên không che nội dung), thay vì bọc trọn ảnh+tên+giá như
+   trước. Nhờ vậy .prod-quick-add nằm thật sự BÊN TRONG .prod-thumb (không còn là hậu duệ của
+   Link nữa — hết lỗi button lồng trong a), z-index cao hơn link nên bấm vào nút không bị link
+   "nuốt" mất click. */
+.prod-card-stretched-link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
 }
 .prod-thumb {
   position: relative;
   height: 150px;
+  background: var(--panel);
+}
+/* Hoạ tiết sọc chéo CHỈ dành cho trạng thái chưa có ảnh — trước đây áp cho mọi thẻ kể cả khi đã
+   có ảnh thật, nên ảnh dùng object-fit: contain (không lấp đầy khung dẹt 150px cao) sẽ lộ sọc
+   chéo 2 bên hông, trông như ảnh lỗi/chưa tải xong. */
+.prod-thumb--empty {
   background: repeating-linear-gradient(
     135deg,
     var(--teal-soft),
@@ -762,6 +769,14 @@ footer a {
   .cart-table {
     min-width: 620px;
   }
+  /* Nút "Xoá" nằm ngay trong bảng cuộn ngang bằng ngón tay — vùng chạm mặc định (padding 6px
+     12px, chữ 12px) hơi nhỏ so với chuẩn khuyến nghị cho thao tác chạm, dễ bấm nhầm lúc đang
+     vuốt xem bảng. Chỉ tăng kích thước trong PHẠM VI bảng giỏ hàng — .cart-remove còn dùng chung
+     cho nút lọc/phân trang ở nơi khác, không đụng tới. */
+  .cart-table .cart-remove {
+    padding: 9px 14px;
+    font-size: 13px;
+  }
 }
 .cart-remove {
   border: 1px solid var(--line);
@@ -948,7 +963,12 @@ footer a {
     flex-shrink: 0;
     padding: 12px 20px;
   }
-  /* Chừa chỗ ở cuối trang để thanh dính không đè lên nút submit thật/nội dung cuối cùng. */
+  /* Ẩn nút submit gốc cuối form — có thanh dính đáy rồi thì 2 nút "đặt hàng" cùng lúc (2 label
+     khác nhau cho cùng 1 hành động) chỉ gây rối, khách cuộn xuống cuối vẫn thấy đủ cả 2 nút. */
+  .checkout-submit-btn {
+    display: none;
+  }
+  /* Chừa chỗ ở cuối trang để thanh dính không đè lên nội dung cuối cùng (ô ghi chú...). */
   .checkout-page {
     padding-bottom: 76px;
   }
@@ -1064,13 +1084,24 @@ footer a {
   flex-wrap: wrap;
   margin-bottom: 6px;
 }
+/* Phụ kiện điện thoại thường tương thích cả chục đời máy — chip wrap tự do không giới hạn có
+   thể đẩy nút "Mua ngay" xuống rất xa trên mobile, khách phải cuộn qua cả rừng chip mới thấy
+   CTA. Giới hạn chiều cao + cho cuộn riêng bên trong, không đụng tới layout tổng thể của trang. */
+@media (max-width: 640px) {
+  .variant-chips {
+    max-height: 132px;
+    overflow-y: auto;
+  }
+}
 .chip {
   border: 1.5px solid var(--line);
   padding: 8px 14px;
   border-radius: var(--radius);
   font-size: 13px;
+  font-family: inherit;
   cursor: pointer;
   background: var(--panel);
+  color: var(--ink);
 }
 .chip.active {
   border-color: var(--ink);
@@ -1117,6 +1148,14 @@ footer a {
   flex: 1;
   text-align: center;
   padding: 15px;
+}
+/* Không có breakpoint riêng trước đây — "Mua ngay — Thanh toán COD" gần như chắc chắn xuống 2
+   dòng ở màn hẹp trong khi "Thêm vào giỏ" chỉ 1 dòng, 2 nút cùng hàng nhưng lệch dòng trông vỡ.
+   Xếp dọc trên mobile, mỗi nút chiếm trọn 1 hàng. */
+@media (max-width: 480px) {
+  .pdp-ctas {
+    flex-direction: column;
+  }
 }
 .pdp-trust {
   font-family: var(--font-mono), monospace;
@@ -1446,9 +1485,10 @@ nav.catnav.mega-nav {
    — trên điện thoại/máy tính bảng (không có khái niệm hover chuột), tính năng mua nhanh từ lưới
    sản phẩm coi như VÔ HÌNH với phần lớn khách truy cập. Đồng thời 2 nút đó từng nằm LỒNG bên
    trong <Link> bao ngoài (button trong a là HTML không hợp lệ, phá tab-order/screen reader).
-   Giờ chỉ còn 1 nút "+" LUÔN hiển thị, là phần tử anh em (sibling) của Link — không lồng nhau,
-   hoạt động như nhau trên mọi thiết bị. "Xem chi tiết" bỏ vì trùng chức năng với việc bấm vào
-   chính thẻ sản phẩm (đã là link tới trang chi tiết). */
+   Giờ chỉ còn 1 nút "+" LUÔN hiển thị, đặt trong .prod-thumb — Link giờ là ".prod-card-stretched-
+   link" phủ kín cả thẻ ở tầng riêng (z-index thấp hơn nút này), không còn là ancestor của nút
+   nữa nên hết lồng nhau. "Xem chi tiết" bỏ vì trùng chức năng với việc bấm vào chính thẻ sản
+   phẩm (đã là link tới trang chi tiết). */
 .prod-quick-add {
   position: absolute;
   right: 8px;

@@ -40,13 +40,15 @@ export default function ProductPurchasePanel({ product, outOfStock = false }) {
           <div className="variant-label">Chọn phân loại</div>
           <div className="variant-chips">
             {product.priceOptions.map((o) => (
-              <div
+              <button
                 key={o.name}
+                type="button"
                 className={`chip ${priceOption === o.name ? "active" : ""}`}
+                aria-pressed={priceOption === o.name}
                 onClick={() => setPriceOption(o.name)}
               >
                 {o.name} — {formatPrice(o.price)}
-              </div>
+              </button>
             ))}
           </div>
         </>
@@ -59,9 +61,15 @@ export default function ProductPurchasePanel({ product, outOfStock = false }) {
           <div className="variant-label">Chọn dòng máy / phiên bản</div>
           <div className="variant-chips">
             {product.variants.map((v) => (
-              <div key={v} className={`chip ${variant === v ? "active" : ""}`} onClick={() => setVariant(v)}>
+              <button
+                key={v}
+                type="button"
+                className={`chip ${variant === v ? "active" : ""}`}
+                aria-pressed={variant === v}
+                onClick={() => setVariant(v)}
+              >
                 {v}
-              </div>
+              </button>
             ))}
           </div>
         </>

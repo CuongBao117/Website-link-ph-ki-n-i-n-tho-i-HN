@@ -134,7 +134,7 @@ export default function CheckoutForm({ userEmail }) {
 
           <button
             type="submit"
-            className="btn-primary"
+            className="btn-primary checkout-submit-btn"
             style={{ marginTop: 16, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}
             disabled={loading}
           >

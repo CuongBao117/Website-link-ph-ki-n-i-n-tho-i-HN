@@ -15,8 +15,6 @@ export default function ProductCard({ product }) {
   const router = useRouter();
   const displayPrice = getDisplayPrice(product);
 
-  // Nút thêm nhanh giờ LUÔN hiển thị (không chờ hover) và là phần tử anh em của <Link>, không
-  // còn lồng bên trong — xem giải thích ở khối CSS ".prod-quick-add" trong globals.css.
   function handleQuickAdd(e) {
     e.preventDefault();
     e.stopPropagation();
@@ -37,41 +35,44 @@ export default function ProductCard({ product }) {
 
   return (
     <div className="prod-card">
-      <Link href={`/san-pham/${product.slug}`} className="prod-card-link">
-        <div className="prod-thumb">
-          {product.imageUrl && (
-            <Image
-              src={product.imageUrl}
-              alt={product.name}
-              fill
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 200px"
-              style={{ objectFit: "contain" }}
-            />
-          )}
-          {outOfStock && <span className="prod-oos-badge">HẾT HÀNG</span>}
-        </div>
-        <div className="prod-body">
-          <span className="prod-code">{product.code}</span>
-          <div className="prod-name">{product.name}</div>
-          <div className="prod-price">
-            {displayPrice.isRange
-              ? `${formatPrice(displayPrice.min)}-${formatPrice(displayPrice.max)}`
-              : formatPrice(displayPrice.price)}
-            {!displayPrice.isRange && product.oldPrice && <span className="old">{formatPrice(product.oldPrice)}</span>}
-          </div>
-        </div>
-      </Link>
+      {/* "Stretched link" — Link phủ kín cả thẻ (vô hình, không đè lên nội dung vì không có
+          nền/chữ), thay vì bọc trọn ảnh+tên+giá như trước. Nhờ vậy .prod-quick-add nằm THẬT SỰ
+          bên trong .prod-thumb (không còn lồng trong Link nữa — hết lỗi button-trong-a), và định
+          vị right/bottom của nó tính đúng theo khung ảnh 150px, không bị lệch xuống đè lên giá. */}
+      <Link href={`/san-pham/${product.slug}`} className="prod-card-stretched-link" aria-label={product.name} />
 
-      {!outOfStock && (
-        <button
-          type="button"
-          className="prod-quick-add"
-          onClick={handleQuickAdd}
-          aria-label={added ? "Đã thêm vào giỏ" : "Thêm nhanh vào giỏ"}
-        >
-          {added ? "✓" : "+"}
-        </button>
-      )}
+      <div className={`prod-thumb${product.imageUrl ? "" : " prod-thumb--empty"}`}>
+        {product.imageUrl && (
+          <Image
+            src={product.imageUrl}
+            alt={product.name}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 200px"
+            style={{ objectFit: "contain" }}
+          />
+        )}
+        {outOfStock && <span className="prod-oos-badge">HẾT HÀNG</span>}
+        {!outOfStock && (
+          <button
+            type="button"
+            className="prod-quick-add"
+            onClick={handleQuickAdd}
+            aria-label={added ? "Đã thêm vào giỏ" : "Thêm nhanh vào giỏ"}
+          >
+            {added ? "✓" : "+"}
+          </button>
+        )}
+      </div>
+      <div className="prod-body">
+        <span className="prod-code">{product.code}</span>
+        <div className="prod-name">{product.name}</div>
+        <div className="prod-price">
+          {displayPrice.isRange
+            ? `${formatPrice(displayPrice.min)}-${formatPrice(displayPrice.max)}`
+            : formatPrice(displayPrice.price)}
+          {!displayPrice.isRange && product.oldPrice && <span className="old">{formatPrice(product.oldPrice)}</span>}
+        </div>
+      </div>
     </div>
   );
 }

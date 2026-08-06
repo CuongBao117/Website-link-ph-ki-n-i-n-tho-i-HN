@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { slugify } from "@/lib/slugify";
 import { isAdminAuthed, requireAdmin } from "@/lib/adminAuth";
 import { parsePriceOptionsText } from "@/lib/priceOptions";
+import { uploadProductImage } from "@/lib/imageUpload";
 
 
 function parseVariants(text) {
@@ -28,25 +29,7 @@ async function uploadProductImages(files, slug) {
   const validFiles = (files || []).filter((f) => f && typeof f === "object" && f.size > 0);
   if (validFiles.length === 0) return [];
 
-  const uploads = await Promise.all(
-    validFiles.map(async (file, i) => {
-      const ext = (file.name?.split(".").pop() || "jpg").toLowerCase();
-      const path = `${slug}-${Date.now()}-${i}.${ext}`;
-
-      const { error } = await supabaseAdmin.storage
-        .from("product-images")
-        .upload(path, file, { upsert: true, contentType: file.type || undefined });
-
-      if (error) {
-        console.error("Lỗi tải ảnh sản phẩm lên:", error.message);
-        return null;
-      }
-
-      const { data } = supabaseAdmin.storage.from("product-images").getPublicUrl(path);
-      return data?.publicUrl || null;
-    })
-  );
-
+  const uploads = await Promise.all(validFiles.map((file, i) => uploadProductImage(file, slug, i)));
   return uploads.filter(Boolean);
 }
 
@@ -111,6 +94,10 @@ export async function createProduct(formData) {
 
   const payload = { slug, ...(await buildProductPayload(formData, slug)) };
 
+  if (!payload.price || payload.price <= 0) {
+    redirect(`/admin/products/new?error=${encodeURIComponent("Giá bán phải lớn hơn 0đ.")}`);
+  }
+
   const { error } = await supabaseAdmin.from("products").insert(payload);
 
   if (error) {
@@ -133,6 +120,10 @@ export async function updateProduct(slug, formData) {
   }
 
   const payload = await buildProductPayload(formData, slug);
+
+  if (!payload.price || payload.price <= 0) {
+    redirect(`/admin/products/${slug}/edit?error=${encodeURIComponent("Giá bán phải lớn hơn 0đ.")}`);
+  }
 
   const { error } = await supabaseAdmin.from("products").update(payload).eq("slug", slug);
 

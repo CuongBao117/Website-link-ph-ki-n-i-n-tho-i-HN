@@ -2,6 +2,7 @@
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getCustomerUser } from "@/lib/customerAuth";
+import { isValidVNPhone } from "@/lib/phone";
 
 // Đặt hàng — chạy hoàn toàn ở server, dùng service_role key.
 // Chỉ nhận slug + variant + qty từ client; GIÁ được tính lại trong database (xem hàm
@@ -26,6 +27,12 @@ export async function placeOrder({ items, customerName, phoneNumber, address, no
 
   if (cleanItems.length === 0) {
     return { success: false, error: "Giỏ hàng đang trống." };
+  }
+
+  // Validate định dạng SĐT ở SERVER — form đã validate nhưng Server Action có thể bị gọi thẳng,
+  // bỏ qua UI (giống lý do phải check lại đăng nhập ở trên). SĐT sai khiến đơn COD không giao được.
+  if (!isValidVNPhone(phoneNumber)) {
+    return { success: false, error: "Số điện thoại không hợp lệ — vui lòng nhập đúng định dạng (VD: 0912345678)." };
   }
 
   const { data, error } = await supabaseAdmin.rpc("place_order", {

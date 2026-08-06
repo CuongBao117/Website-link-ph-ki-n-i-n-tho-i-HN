@@ -32,50 +32,56 @@ export default function CartPage() {
         <span className="idx">{items.length} SẢN PHẨM</span>
       </div>
 
-      <table className="cart-table">
-        <thead>
-          <tr>
-            <th>Sản phẩm</th>
-            <th>Phân loại</th>
-            <th>Đơn giá</th>
-            <th>Số lượng</th>
-            <th>Thành tiền</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => (
-            <tr key={item.slug + item.variant + (item.priceOption || "")}>
-              <td>
-                {item.name}
-                <div className="prod-code">{item.code}</div>
-              </td>
-              <td>{[item.priceOption, item.variant].filter(Boolean).join(" · ") || "—"}</td>
-              <td>{formatPrice(item.price)}</td>
-              <td>
-                <div className="qty-box">
-                  <button onClick={() => updateQty(item.slug, item.variant, item.qty - 1, item.priceOption)}>
-                    –
-                  </button>
-                  <span>{item.qty}</span>
-                  <button onClick={() => updateQty(item.slug, item.variant, item.qty + 1, item.priceOption)}>
-                    +
-                  </button>
-                </div>
-              </td>
-              <td>{formatPrice(item.price * item.qty)}</td>
-              <td>
-                <button
-                  className="cart-remove"
-                  onClick={() => removeItem(item.slug, item.variant, item.priceOption)}
-                >
-                  Xoá
-                </button>
-              </td>
+      <div className="cart-table-hint">← Vuốt ngang để xem đầy đủ →</div>
+      <div className="cart-table-scroll">
+        <table className="cart-table">
+          <thead>
+            <tr>
+              <th>Sản phẩm</th>
+              <th>Phân loại</th>
+              <th>Đơn giá</th>
+              <th>Số lượng</th>
+              <th>Thành tiền</th>
+              <th></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.slug + item.variant + (item.priceOption || "")}>
+                <td>
+                  {item.name}
+                  <div className="prod-code">{item.code}</div>
+                </td>
+                <td>{[item.priceOption, item.variant].filter(Boolean).join(" · ") || "—"}</td>
+                <td>{formatPrice(item.price)}</td>
+                <td>
+                  <div className="qty-box">
+                    <button
+                      onClick={() => updateQty(item.slug, item.variant, item.qty - 1, item.priceOption)}
+                      disabled={item.qty <= 1}
+                    >
+                      –
+                    </button>
+                    <span>{item.qty}</span>
+                    <button onClick={() => updateQty(item.slug, item.variant, item.qty + 1, item.priceOption)}>
+                      +
+                    </button>
+                  </div>
+                </td>
+                <td>{formatPrice(item.price * item.qty)}</td>
+                <td>
+                  <button
+                    className="cart-remove"
+                    onClick={() => removeItem(item.slug, item.variant, item.priceOption)}
+                  >
+                    Xoá
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <div className="cart-summary" style={{ flexWrap: "wrap" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 13, color: "var(--ink-soft)" }}>

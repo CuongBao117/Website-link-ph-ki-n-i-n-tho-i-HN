@@ -157,6 +157,40 @@ header.site-header {
   border-color: var(--copper);
   color: #fff;
 }
+
+/* Header không co giãn được (logo + ô tìm kiếm + nút đăng nhập/giỏ hàng trên cùng 1 hàng,
+   gap 28px, không wrap) — trên màn hình hẹp, ô tìm kiếm bị bóp mất hẳn và nút "Giỏ hàng" tràn
+   ra ngoài viewport, khách phải cuộn ngang mới bấm được. Dưới 640px: xếp logo + nút thành 1
+   hàng, đẩy ô tìm kiếm xuống hàng riêng full-width. */
+@media (max-width: 640px) {
+  header.site-header {
+    flex-wrap: wrap;
+    gap: 10px 12px;
+    padding: 14px 16px;
+  }
+  header.site-header .logo {
+    order: 1;
+    font-size: 18px;
+  }
+  header.site-header .header-actions {
+    order: 2;
+    margin-left: auto;
+    gap: 8px;
+  }
+  header.site-header .searchbar {
+    order: 3;
+    flex-basis: 100%;
+  }
+  /* Lời chào "Xin chào, X" chiếm nhiều chỗ nhất trong hàng nút — ẩn trên mobile, các nút hành
+     động (Đơn hàng của tôi/Đăng xuất/Giỏ hàng) quan trọng hơn và cần chỗ để không tràn. */
+  .header-user-name {
+    display: none;
+  }
+  .header-action-btn {
+    padding: 8px 12px;
+    font-size: 12.5px;
+  }
+}
 .header-action-btn--primary:hover {
   background: var(--copper-dark);
   border-color: var(--copper-dark);
@@ -262,6 +296,11 @@ main {
   font-size: 14px;
   border-radius: var(--radius);
   cursor: pointer;
+}
+.btn-primary:disabled,
+.btn-outline:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 .diagram-caption {
   text-align: center;
@@ -607,7 +646,6 @@ footer a {
 .cart-table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 24px;
   font-size: 15px;
 }
 .cart-table th {
@@ -624,6 +662,32 @@ footer a {
   padding: 16px 12px;
   border-bottom: 1px solid var(--line);
   vertical-align: middle;
+}
+
+/* Trên màn hình hẹp, không để trình duyệt tự bóp từng cột (cột "Sản phẩm" bị ép xuống 1 từ/dòng
+   rất khó đọc) — thay vào đó giữ nguyên tỉ lệ cột như desktop (min-width) và cho cả bảng cuộn
+   ngang trong khung riêng, kèm gợi ý "vuốt để xem thêm" để khách biết còn nội dung bên phải. */
+.cart-table-hint {
+  display: none;
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+.cart-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 24px;
+}
+@media (max-width: 640px) {
+  .cart-table-hint {
+    display: block;
+  }
+  .cart-table-scroll {
+    margin-bottom: 16px;
+  }
+  .cart-table {
+    min-width: 620px;
+  }
 }
 .cart-remove {
   border: 1px solid var(--line);
@@ -884,6 +948,10 @@ footer a {
   cursor: pointer;
   font-size: 16px;
 }
+.qty-box button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 .qty-box span {
   width: 40px;
   display: flex;
@@ -1020,6 +1088,22 @@ nav.catnav.mega-nav {
 .mega-panel a:hover {
   background: var(--teal-soft);
   color: var(--teal);
+}
+
+/* nav.catnav.mega-nav cố tình dùng overflow: visible (không phải overflow-x: auto) để bảng
+   .mega-panel xổ xuống không bị cắt (xem giải thích ở trên) — nghĩa là không thể cho hàng
+   trigger cuộn ngang mà không viết lại cách mở panel (đưa panel ra khỏi khung cuộn bằng
+   portal + tính toạ độ qua JS, đồng thời phải đổi tương tác desktop từ CSS ":hover" hiện tại
+   sang JS hover — rủi ro hồi quy hành vi đang chạy tốt, để dành cho 1 thay đổi riêng nếu cần).
+   Trong lúc đó: thu nhỏ chữ/khoảng đệm trên mobile để 4 mục dễ vừa 1 dòng hơn, và căn giữa cho
+   gọn khi vẫn phải xuống 2 dòng, thay vì chữ lệch trái trông như bị vỡ. */
+@media (max-width: 640px) {
+  .mega-trigger {
+    padding: 10px 10px;
+    font-size: 12px;
+    text-align: center;
+    justify-content: center;
+  }
 }
 
 /* ===== Hero mới (sidebar 4 danh mục lớn + banner) ===== */

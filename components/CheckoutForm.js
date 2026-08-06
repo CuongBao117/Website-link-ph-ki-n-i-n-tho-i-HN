@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { formatPrice } from "@/data/products";
 import { calcShippingFee } from "@/lib/shipping";
+import { isValidVNPhone } from "@/lib/phone";
 import { placeOrder } from "@/app/(shop)/dat-hang/actions";
 
 export default function CheckoutForm({ userEmail }) {
@@ -26,6 +27,12 @@ export default function CheckoutForm({ userEmail }) {
   async function handleSubmit(e) {
     e.preventDefault();
     if (loading) return;
+
+    if (!isValidVNPhone(form.phone)) {
+      setError("Số điện thoại không hợp lệ — vui lòng nhập đúng định dạng (VD: 0912345678).");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -96,7 +103,15 @@ export default function CheckoutForm({ userEmail }) {
           <input required name="name" value={form.name} onChange={handleChange} placeholder="Nguyễn Văn A" />
 
           <label>Số điện thoại</label>
-          <input required name="phone" value={form.phone} onChange={handleChange} placeholder="09xxxxxxxx" />
+          <input
+            required
+            type="tel"
+            inputMode="tel"
+            name="phone"
+            value={form.phone}
+            onChange={handleChange}
+            placeholder="09xxxxxxxx"
+          />
 
           <label>Địa chỉ giao hàng</label>
           <input

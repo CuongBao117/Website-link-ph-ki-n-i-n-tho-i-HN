@@ -1220,6 +1220,77 @@ nav.catnav.mega-nav {
   background: var(--teal);
 }
 
+/* ===== Nút nổi Hotline & Zalo ===== */
+.floating-contact {
+  position: fixed;
+  right: 20px;
+  bottom: 24px;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.floating-contact__btn {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  text-decoration: none;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+.floating-contact__btn--zalo {
+  background: #0068ff;
+}
+.floating-contact__btn--zalo:hover {
+  background: #0054cc;
+}
+.floating-contact__zalo-text {
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 800;
+  font-size: 14px;
+  font-style: italic;
+  letter-spacing: -0.02em;
+}
+.floating-contact__btn--phone {
+  background: #22c55e;
+}
+.floating-contact__btn--phone:hover {
+  background: #16a34a;
+}
+.floating-contact__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: inherit;
+  opacity: 0.6;
+  animation: floating-contact-pulse 1.8s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes floating-contact-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+@media (max-width: 640px) {
+  .floating-contact {
+    right: 14px;
+    bottom: 84px;
+  }
+  .floating-contact__btn {
+    width: 46px;
+    height: 46px;
+  }
+}
+
 @media (max-width: 900px) {
   .hero-simple {
     grid-template-columns: 1fr;

@@ -1,8 +1,8 @@
 const ITEMS = [
-  "🚚 Miễn phí vận chuyển cho đơn từ 2.000.000đ",
-  "🔧 Linh kiện chính hãng — bảo hành rõ ràng",
-  "📞 Hotline / Zalo: 0357 105 530 — hỗ trợ 8:00–21:00 mỗi ngày",
-  "💯 Giao hàng COD toàn quốc, kiểm tra kỹ trước khi nhận",
+  "Miễn phí vận chuyển cho đơn từ 2.000.000đ",
+  "Linh kiện chính hãng — bảo hành rõ ràng",
+  "Hotline / Zalo: 0357 105 530 — hỗ trợ 8:00–21:00 mỗi ngày",
+  "Giao hàng COD toàn quốc, kiểm tra kỹ trước khi nhận",
 ];
 
 export default function PromoTicker() {

@@ -12,8 +12,8 @@ import { CartProvider } from "@/context/CartContext";
 export default function ShopLayout({ children }) {
   return (
     <CartProvider>
-      <Header />
       <PromoTicker />
+      <Header />
       {children}
       <Footer />
       <HomeShortcut />

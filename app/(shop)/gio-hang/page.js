@@ -8,6 +8,14 @@ import { calcShippingFee } from "@/lib/shipping";
 export default function CartPage() {
   const { items, updateQty, removeItem, totalPrice } = useCart();
 
+  // Xoá là mất luôn, không có "Hoàn tác" — hỏi lại 1 câu tránh bấm nhầm, nhất là trên mobile khi
+  // nút "Xoá" nằm ngay trong bảng cuộn ngang bằng ngón tay (dễ chạm nhầm lúc đang vuốt xem bảng).
+  function handleRemove(item) {
+    if (window.confirm(`Xoá "${item.name}" khỏi giỏ hàng?`)) {
+      removeItem(item.slug, item.variant, item.priceOption);
+    }
+  }
+
   if (items.length === 0) {
     return (
       <main>
@@ -70,10 +78,7 @@ export default function CartPage() {
                 </td>
                 <td>{formatPrice(item.price * item.qty)}</td>
                 <td>
-                  <button
-                    className="cart-remove"
-                    onClick={() => removeItem(item.slug, item.variant, item.priceOption)}
-                  >
+                  <button className="cart-remove" onClick={() => handleRemove(item)}>
                     Xoá
                   </button>
                 </td>

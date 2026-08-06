@@ -3,8 +3,9 @@
 // trước khi thấy nội dung thật), chỉ thêm các thông điệp CHƯA có ở đâu khác trên trang.
 const ITEMS = [
   "Chuyên sỉ linh phụ kiện điện thoại giá rẻ",
-  "Giao hàng COD toàn quốc, kiểm tra kỹ trước khi nhận",
-  "Bảo hành dài",
+  "Giao hàng COD toàn quốc",
+  "Kiểm tra trước khi nhận hàng",
+  "Giá cả cạnh tranh — bảo hành dài",
   "Tư vấn nhiệt tình qua Zalo/Hotline",
 ];
 

@@ -33,15 +33,17 @@ export default function ProductGallery({ images, name }) {
       <div className="pdp-thumbs">
         {list.length > 0
           ? list.map((url, i) => (
-              <div
+              <button
                 key={url + i}
+                type="button"
                 className={i === active ? "active" : ""}
                 onClick={() => setActive(i)}
+                aria-label={`Xem ảnh ${i + 1}/${list.length}`}
+                aria-current={i === active}
                 style={{
                   backgroundImage: `url(${url})`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
-                  cursor: "pointer",
                 }}
               />
             ))

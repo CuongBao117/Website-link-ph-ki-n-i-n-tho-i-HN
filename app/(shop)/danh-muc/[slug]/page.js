@@ -43,8 +43,11 @@ export default async function CategoryPage({ params, searchParams }) {
       </div>
 
       <div className="cat-pills">
+        {/* Chỉ liệt kê danh mục CÙNG nhóm cha với danh mục đang xem (vd cùng nằm trong "Linh
+            kiện") — trước đây lọc theo "có group_slug" (tức MỌI danh mục còn hiển thị trên site,
+            bất kể nhóm nào), nên hàng pill dài dần vô nghĩa khi catalog nhiều danh mục hơn. */}
         {categories
-          .filter((c) => c.group_slug)
+          .filter((c) => c.group_slug === category.group_slug)
           .map((c) => (
             <Link
               key={c.slug}

@@ -86,8 +86,13 @@ header.site-header {
 .logo .dot {
   color: var(--copper);
 }
-.searchbar {
+/* .search-wrap bọc ngoài .searchbar (form) — cần 1 lớp bọc riêng để đặt dropdown gợi ý
+   (.search-suggestions) định vị tuyệt đối NGAY DƯỚI ô tìm kiếm, không lệ thuộc DOM order. */
+.search-wrap {
+  position: relative;
   flex: 1;
+}
+.searchbar {
   display: flex;
   background: var(--input-bg);
   border: 1.5px solid transparent;
@@ -119,6 +124,61 @@ header.site-header {
   font-weight: 600;
   letter-spacing: 0.05em;
   cursor: pointer;
+}
+.search-suggestions {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--teal);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+  z-index: 200;
+  overflow: hidden;
+}
+.search-suggestion-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  text-decoration: none;
+  color: var(--ink);
+  font-size: 13.5px;
+}
+.search-suggestion-item:hover,
+.search-suggestion-item.active {
+  background: var(--teal-soft);
+  color: var(--teal);
+}
+.search-suggestion-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search-suggestion-price {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--copper-dark);
+  font-size: 13px;
+}
+.search-suggestion-more {
+  display: block;
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+  padding: 10px 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--teal);
+  cursor: pointer;
+  text-align: left;
+}
+.search-suggestion-more:hover {
+  background: var(--teal-soft);
 }
 .header-actions {
   display: flex;
@@ -172,12 +232,19 @@ header.site-header {
     order: 1;
     font-size: 18px;
   }
+  /* .header-actions xuống hàng RIÊNG (không ghép chung hàng với logo) — khi đã đăng nhập, nút
+     hành động lên tới 3 pill ("Đơn hàng của tôi" / "Đăng xuất" / "Giỏ hàng"), ghép chung hàng
+     với logo trên màn hình rất nhỏ (≤360px, các máy Android giá rẻ) dễ sát mép/tràn. Cho cả
+     hàng này rộng full-width + tự bọc xuống dòng (flex-wrap) nếu 3 pill vẫn không đủ chỗ, thay
+     vì cố ép vừa 1 dòng rồi tràn ra ngoài viewport. */
   header.site-header .header-actions {
     order: 2;
-    margin-left: auto;
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 8px;
   }
-  header.site-header .searchbar {
+  header.site-header .search-wrap {
     order: 3;
     flex-basis: 100%;
   }
@@ -400,21 +467,28 @@ main {
   margin-bottom: 56px;
 }
 .prod-card {
+  position: relative;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  cursor: pointer;
   transition: 0.15s;
-  text-decoration: none;
-  color: var(--ink);
-  display: block;
 }
 .prod-card:hover {
   border-color: var(--copper);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
 }
+/* Thẻ sản phẩm KHÔNG còn là 1 thẻ <a> bao trọn nữa — .prod-card-link chỉ bọc phần ảnh+tên+giá
+   (dẫn tới trang chi tiết), còn .prod-quick-add là nút anh em riêng đè lên góc ảnh, để không còn
+   button lồng trong a (xem giải thích ở khối "Nút thêm nhanh" bên dưới). */
+.prod-card-link {
+  display: block;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--ink);
+}
 .prod-thumb {
+  position: relative;
   height: 150px;
   background: repeating-linear-gradient(
     135deg,
@@ -760,6 +834,21 @@ footer a {
 .checkout-form textarea:focus {
   border-color: var(--teal);
 }
+.checkout-form input[aria-invalid="true"] {
+  border-color: #b0503a;
+}
+/* Banner lỗi form — TRƯỚC ĐÂY dùng lại .empty-state (căn giữa, viền đứt nét, padding 40px —
+   vốn thiết kế cho khối "chưa có gì" như "chưa có sản phẩm nào"), phải override lại bằng inline
+   style mỗi lần dùng. Class riêng này đúng ngữ nghĩa hơn: banner lỗi căn trái, viền liền nét. */
+.form-error {
+  border: 1px solid #b0503a;
+  background: #fbf1ee;
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  color: #b0503a;
+  font-size: 13.5px;
+  text-align: left;
+}
 .checkout-summary {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -811,6 +900,58 @@ footer a {
   .checkout-grid {
     grid-template-columns: 1fr;
   }
+  /* Trên mobile (1 cột), thứ tự DOM cũ (form rồi mới tới tóm tắt/tổng tiền) khiến khách phải
+     cuộn hết cả form mù mờ, không biết mình sắp trả bao nhiêu trước khi điền — dễ bỏ giữa
+     chừng ở bước quan trọng nhất của phễu bán hàng. Đảo tóm tắt lên trước bằng CSS "order"
+     (không cần đổi thứ tự JSX, HTML vẫn đọc tự nhiên cho screen reader theo đúng luồng form). */
+  .checkout-summary {
+    order: -1;
+    margin-bottom: 8px;
+  }
+}
+
+/* Thanh tổng tiền + nút đặt hàng "dính" đáy màn hình trên mobile — khách luôn thấy được tổng
+   tiền và có thể đặt hàng ngay mà không cần cuộn xuống cuối form, giống chuẩn TMĐT phổ biến.
+   Nút dùng attribute form="..." để submit đúng <form id="checkout-form"> hiện có, không cần
+   nhân đôi logic handleSubmit. */
+.checkout-sticky-bar {
+  display: none;
+}
+@media (max-width: 640px) {
+  .checkout-sticky-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 950;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    padding: 12px 16px;
+    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.08);
+  }
+  .checkout-sticky-bar .checkout-sticky-total {
+    display: flex;
+    flex-direction: column;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .checkout-sticky-bar .checkout-sticky-total strong {
+    font-family: var(--font-display), sans-serif;
+    font-size: 17px;
+    color: var(--copper-dark);
+  }
+  .checkout-sticky-bar button {
+    flex-shrink: 0;
+    padding: 12px 20px;
+  }
+  /* Chừa chỗ ở cuối trang để thanh dính không đè lên nút submit thật/nội dung cuối cùng. */
+  .checkout-page {
+    padding-bottom: 76px;
+  }
 }
 
 /* ===== product detail page ===== */
@@ -853,17 +994,24 @@ footer a {
   display: flex;
   gap: 8px;
 }
-.pdp-thumbs div {
+.pdp-thumbs div,
+.pdp-thumbs button {
   width: 64px;
   height: 64px;
+  padding: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--teal-soft);
+  background-color: var(--teal-soft);
   cursor: pointer;
 }
-.pdp-thumbs div.active {
+.pdp-thumbs div.active,
+.pdp-thumbs button.active {
   border-color: var(--copper);
   border-width: 2px;
+}
+.pdp-thumbs button:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
 }
 .pdp-code {
   font-family: var(--font-mono), monospace;
@@ -1293,42 +1441,46 @@ nav.catnav.mega-nav {
   }
 }
 
-/* ===== Hiệu ứng hover trên ảnh sản phẩm ===== */
-.prod-hover-actions {
+/* ===== Nút "thêm nhanh" trên ảnh sản phẩm ===== */
+/* Trước đây 2 nút "Thêm vào giỏ"/"Xem chi tiết" chỉ hiện khi hover (onMouseEnter/onMouseLeave)
+   — trên điện thoại/máy tính bảng (không có khái niệm hover chuột), tính năng mua nhanh từ lưới
+   sản phẩm coi như VÔ HÌNH với phần lớn khách truy cập. Đồng thời 2 nút đó từng nằm LỒNG bên
+   trong <Link> bao ngoài (button trong a là HTML không hợp lệ, phá tab-order/screen reader).
+   Giờ chỉ còn 1 nút "+" LUÔN hiển thị, là phần tử anh em (sibling) của Link — không lồng nhau,
+   hoạt động như nhau trên mọi thiết bị. "Xem chi tiết" bỏ vì trùng chức năng với việc bấm vào
+   chính thẻ sản phẩm (đã là link tới trang chi tiết). */
+.prod-quick-add {
   position: absolute;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.55);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease;
-  z-index: 1;
-}
-.prod-hover-actions.visible {
-  opacity: 1;
-  pointer-events: auto;
-}
-.prod-hover-btn {
-  background: #fff;
-  color: var(--ink);
+  right: 8px;
+  bottom: 8px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
   border: none;
-  border-radius: var(--radius);
-  padding: 8px 16px;
-  font-size: 12.5px;
-  font-weight: 600;
+  background: #fff;
+  color: var(--copper-dark);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
   cursor: pointer;
-  width: 168px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  z-index: 2;
 }
-.prod-hover-btn.primary {
+.prod-quick-add:hover {
   background: var(--copper);
   color: #fff;
 }
-.prod-hover-btn:hover {
-  filter: brightness(0.95);
+.prod-oos-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: #f3e4e0;
+  color: #b0503a;
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  z-index: 2;
 }
 
 /* ===== Thanh lọc sản phẩm (danh mục / tìm kiếm) ===== */
@@ -1338,6 +1490,47 @@ nav.catnav.mega-nav {
   gap: 10px;
   margin-bottom: 16px;
   align-items: center;
+}
+
+/* Nút thu gọn/mở rộng bộ lọc — chỉ hiện trên mobile. Trên desktop .filter-bar luôn hiện đủ 1
+   hàng gọn nên không cần nút này. Trên mobile, 5-7 ô lọc xếp chồng dọc sẽ chắn hết sản phẩm
+   trước khi khách kịp thấy hàng nào — thu gọn mặc định, khách tự mở khi cần lọc. */
+.filter-toggle {
+  display: none;
+}
+@media (max-width: 640px) {
+  .filter-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    background: var(--panel);
+    border: 1.5px solid var(--line);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .filter-toggle-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--copper);
+  }
+  .filter-bar {
+    display: none;
+  }
+  .filter-bar.is-open {
+    display: flex;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 12px;
+    margin-top: -4px;
+  }
 }
 
 /* ===== Nút nổi quay lại trang chủ ===== */

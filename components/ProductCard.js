@@ -10,12 +10,13 @@ import { useCart } from "@/context/CartContext";
 
 export default function ProductCard({ product }) {
   const outOfStock = (product.stock ?? 0) <= 0;
-  const [hovered, setHovered] = useState(false);
   const [added, setAdded] = useState(false);
   const { addItem } = useCart();
   const router = useRouter();
   const displayPrice = getDisplayPrice(product);
 
+  // Nút thêm nhanh giờ LUÔN hiển thị (không chờ hover) và là phần tử anh em của <Link>, không
+  // còn lồng bên trong — xem giải thích ở khối CSS ".prod-quick-add" trong globals.css.
   function handleQuickAdd(e) {
     e.preventDefault();
     e.stopPropagation();
@@ -34,70 +35,43 @@ export default function ProductCard({ product }) {
     setTimeout(() => setAdded(false), 1500);
   }
 
-  function handleQuickView(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    router.push(`/san-pham/${product.slug}`);
-  }
-
   return (
-    <Link
-      href={`/san-pham/${product.slug}`}
-      className="prod-card"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <div className="prod-thumb" style={{ position: "relative" }}>
-        {product.imageUrl && (
-          <Image
-            src={product.imageUrl}
-            alt={product.name}
-            fill
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 200px"
-            style={{ objectFit: "cover" }}
-          />
-        )}
-        {outOfStock && (
-          <span
-            style={{
-              position: "absolute",
-              top: 8,
-              left: 8,
-              background: "#F3E4E0",
-              color: "#B0503A",
-              fontFamily: "var(--font-mono), monospace",
-              fontSize: 10,
-              padding: "3px 8px",
-              borderRadius: 3,
-              zIndex: 2,
-            }}
-          >
-            HẾT HÀNG
-          </span>
-        )}
-
-        {/* Hiệu ứng hover: 2 nút "Thêm vào giỏ" + "Xem chi tiết" nổi lên trên ảnh */}
-        <div className={`prod-hover-actions ${hovered ? "visible" : ""}`}>
-          {!outOfStock && (
-            <button type="button" className="prod-hover-btn primary" onClick={handleQuickAdd}>
-              {added ? "Đã thêm ✓" : "Thêm vào giỏ"}
-            </button>
+    <div className="prod-card">
+      <Link href={`/san-pham/${product.slug}`} className="prod-card-link">
+        <div className="prod-thumb">
+          {product.imageUrl && (
+            <Image
+              src={product.imageUrl}
+              alt={product.name}
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 200px"
+              style={{ objectFit: "contain" }}
+            />
           )}
-          <button type="button" className="prod-hover-btn" onClick={handleQuickView}>
-            Xem chi tiết
-          </button>
+          {outOfStock && <span className="prod-oos-badge">HẾT HÀNG</span>}
         </div>
-      </div>
-      <div className="prod-body">
-        <span className="prod-code">{product.code}</span>
-        <div className="prod-name">{product.name}</div>
-        <div className="prod-price">
-          {displayPrice.isRange
-            ? `${formatPrice(displayPrice.min)}-${formatPrice(displayPrice.max)}`
-            : formatPrice(displayPrice.price)}
-          {!displayPrice.isRange && product.oldPrice && <span className="old">{formatPrice(product.oldPrice)}</span>}
+        <div className="prod-body">
+          <span className="prod-code">{product.code}</span>
+          <div className="prod-name">{product.name}</div>
+          <div className="prod-price">
+            {displayPrice.isRange
+              ? `${formatPrice(displayPrice.min)}-${formatPrice(displayPrice.max)}`
+              : formatPrice(displayPrice.price)}
+            {!displayPrice.isRange && product.oldPrice && <span className="old">{formatPrice(product.oldPrice)}</span>}
+          </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+
+      {!outOfStock && (
+        <button
+          type="button"
+          className="prod-quick-add"
+          onClick={handleQuickAdd}
+          aria-label={added ? "Đã thêm vào giỏ" : "Thêm nhanh vào giỏ"}
+        >
+          {added ? "✓" : "+"}
+        </button>
+      )}
+    </div>
   );
 }

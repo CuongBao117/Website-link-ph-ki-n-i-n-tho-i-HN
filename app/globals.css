@@ -378,32 +378,6 @@ main {
   letter-spacing: 0.04em;
 }
 
-/* ===== trust strip ===== */
-.trust-strip {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  background: var(--panel);
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  gap: 20px;
-  padding: 22px 8px;
-  margin-bottom: 56px;
-}
-.trust-strip div {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.trust-strip .code {
-  font-size: 22px;
-  line-height: 1;
-}
-.trust-strip .label {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ink);
-}
-
 /* ===== section head ===== */
 .section-head {
   display: flex;
@@ -417,6 +391,15 @@ main {
   font-family: var(--font-display), sans-serif;
   font-size: 22px;
   margin: 0;
+}
+/* Riêng tiêu đề từng khối danh mục sản phẩm trên trang chủ (ProductGrid) — không áp cho h2 dùng
+   chung ở checkout/đăng nhập/admin... — mới cần khung màu nổi bật để tách rõ giữa các khối. */
+.section-head h2.prod-section-title {
+  padding: 6px 16px;
+  background: rgba(249, 115, 22, 0.1);
+  border: 1px solid var(--copper);
+  border-radius: var(--radius);
+  color: var(--copper-dark);
 }
 .section-head .idx {
   font-family: var(--font-mono), monospace;
@@ -546,8 +529,12 @@ footer.site-footer {
   max-width: 1200px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr;
   gap: 30px;
+}
+.foot-logo {
+  border-radius: 8px;
+  margin-bottom: 10px;
 }
 footer h4 {
   color: #fff;
@@ -1207,9 +1194,6 @@ footer a {
   .pdp {
     grid-template-columns: 1fr;
   }
-  .trust-strip {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 
 /* ===== Mega menu (thay cho catnav phẳng cũ) ===== */
@@ -1430,25 +1414,42 @@ nav.catnav.mega-nav {
 .hero-banner-slide.is-active {
   opacity: 1;
 }
-.hero-banner-dots {
-  position: absolute;
-  right: 20px;
-  bottom: 18px;
-  z-index: 2;
+.hero-banner-slide--brand {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 64px;
+  background: linear-gradient(135deg, var(--copper) 0%, var(--teal) 100%);
 }
-.hero-banner-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.45);
-  cursor: pointer;
-  padding: 0;
+.hero-banner-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
-.hero-banner-dot.is-active {
+.hero-banner-brand-logo {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+  border-radius: 16px;
   background: #fff;
+  padding: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+.hero-banner-brand-slogan {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+@media (max-width: 640px) {
+  .hero-banner-slide--brand {
+    justify-content: center;
+    padding-right: 0;
+  }
 }
 .hero-intro {
   position: relative;
@@ -1466,20 +1467,10 @@ nav.catnav.mega-nav {
   font-family: var(--font-display), sans-serif;
   font-size: 34px;
   line-height: 1.15;
-  margin: 0 0 14px;
+  margin: 0;
   letter-spacing: -0.01em;
   color: #fff;
-}
-.hero-intro p {
-  color: rgba(255, 255, 255, 0.88);
-  font-size: 15px;
-  line-height: 1.6;
-  margin-bottom: 26px;
   max-width: 440px;
-}
-.hero-ctas {
-  display: flex;
-  gap: 12px;
 }
 @media (prefers-reduced-motion: reduce) {
   .hero-banner-slide {

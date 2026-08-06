@@ -1,10 +1,12 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Footer() {
   return (
     <footer className="site-footer">
       <div className="foot-grid">
         <div>
+          <Image src="/logo.png" alt="LINH KIỆN.STORE" width={44} height={44} className="foot-logo" />
           <h4>LINH KIỆN.STORE</h4>
           <p>
             Chuyên linh kiện thay thế điện thoại &amp; phụ kiện điện tử: loa, tai
@@ -22,6 +24,11 @@ export default function Footer() {
           <p>Chính sách bảo hành</p>
           <p>Chính sách đổi trả</p>
           <p>Hướng dẫn đặt hàng COD</p>
+        </div>
+        <div>
+          <h4>ĐỊA CHỈ</h4>
+          <p>Miền Bắc: Vân Xuân, Vĩnh Tường, Vĩnh Phúc</p>
+          <p>Miền Nam: Đạ Ròn, Đơn Dương, Lâm Đồng</p>
         </div>
         <div>
           <h4>LIÊN HỆ</h4>

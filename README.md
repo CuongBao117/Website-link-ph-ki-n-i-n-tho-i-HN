@@ -32,7 +32,7 @@ linhkien-store/
 │   ├── DeleteProductButton.js              # Nút xoá sản phẩm (có xác nhận)
 │   ├── OrderStatusSelect.js                # Dropdown đổi trạng thái đơn hàng
 │   ├── ProductPurchasePanel.js             # Chọn dòng máy/số lượng, khoá khi hết hàng
-│   └── ... (Footer, Hero, TrustStrip, CategoryGrid, ProductGrid, CategoryProductList)
+│   └── ... (Footer, Hero, CategoryGrid, ProductGrid, CategoryProductList)
 ├── context/
 │   └── CartContext.js                      # State giỏ hàng, lưu localStorage
 ├── lib/

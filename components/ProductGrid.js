@@ -9,7 +9,7 @@ export default function ProductGrid({ title, idxLabel, products, moreHref }) {
   return (
     <section>
       <div className="section-head">
-        <h2>{title}</h2>
+        <h2 className="prod-section-title">{title}</h2>
         {moreHref ? (
           <Link href={moreHref} className="idx" style={{ textDecoration: "none" }}>
             {idxLabel || "XEM TẤT CẢ →"}

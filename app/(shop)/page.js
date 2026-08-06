@@ -1,5 +1,4 @@
 import Hero from "@/components/Hero";
-import TrustStrip from "@/components/TrustStrip";
 import ProductGrid from "@/components/ProductGrid";
 import { getCategories, getFilteredProducts } from "@/data/products";
 
@@ -37,7 +36,6 @@ export default async function HomePage() {
   return (
     <main>
       <Hero />
-      <TrustStrip />
 
       <div id="danh-muc" />
 

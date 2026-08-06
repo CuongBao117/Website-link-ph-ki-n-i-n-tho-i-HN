@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { revalidatePath } from "next/cache";
 import { slugify } from "@/lib/slugify";
 import { requireAdmin } from "@/lib/adminAuth";
+import { uploadProductImage } from "@/lib/imageUpload";
 
 // Tìm sản phẩm gần đúng theo tên — dùng cho ô tìm kiếm khi ghép ảnh Zalo với sản phẩm
 // đã có sẵn trong database (giá/mã hàng đã đúng từ trước, chỉ cần gắn thêm ảnh).
@@ -31,20 +32,7 @@ export async function searchProducts(query) {
 }
 
 async function uploadOneImage(file, slugForPath) {
-  const ext = (file.name?.split(".").pop() || "jpg").toLowerCase();
-  const path = `${slugForPath}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
-
-  const { error } = await supabaseAdmin.storage
-    .from("product-images")
-    .upload(path, file, { upsert: true, contentType: file.type || undefined });
-
-  if (error) {
-    console.error("Lỗi tải ảnh lên:", error.message);
-    return null;
-  }
-
-  const { data } = supabaseAdmin.storage.from("product-images").getPublicUrl(path);
-  return data?.publicUrl || null;
+  return uploadProductImage(file, slugForPath);
 }
 
 // Gắn 1 ảnh vào 1 sản phẩm ĐÃ CÓ SẴN (thêm vào cuối mảng ảnh hiện có, không xoá ảnh cũ).

@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { revalidatePath } from "next/cache";
 import { slugify } from "@/lib/slugify";
 import { requireAdmin } from "@/lib/adminAuth";
+import { uploadProductImage } from "@/lib/imageUpload";
 
 // Ngưỡng độ khớp mờ (pg_trgm, 0..1) để coi là "chắc chắn cùng 1 sản phẩm" — giống ngưỡng đã dùng
 // ở công cụ "Ghép ảnh Zalo" cũ (đã bỏ) khi còn dùng match_products_by_text().
@@ -131,20 +132,7 @@ export async function prepareZaloRows({ category, categoryCode, items }) {
 }
 
 async function uploadOneImage(file, slugForPath) {
-  const ext = (file.name?.split(".").pop() || "jpg").toLowerCase();
-  const path = `${slugForPath}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
-
-  const { error } = await supabaseAdmin.storage
-    .from("product-images")
-    .upload(path, file, { upsert: true, contentType: file.type || undefined });
-
-  if (error) {
-    console.error("Lỗi tải ảnh lên:", error.message);
-    return null;
-  }
-
-  const { data } = supabaseAdmin.storage.from("product-images").getPublicUrl(path);
-  return data?.publicUrl || null;
+  return uploadProductImage(file, slugForPath);
 }
 
 // Tạo 1 sản phẩm MỚI kèm luôn ảnh — dùng cho các dòng KHÔNG trùng sản phẩm đã có (hoặc admin chủ

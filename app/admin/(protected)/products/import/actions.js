@@ -31,11 +31,31 @@ function parseSpecs(text) {
     .filter(Boolean);
 }
 
+// next.config.mjs chỉ khai báo cho next/image tối ưu ảnh từ ĐÚNG domain Supabase Storage của
+// shop (xem next.config.mjs) — 1 dòng CSV lỡ dán link ảnh từ domain khác (Google, imgur...) sẽ
+// khiến next/image ném lỗi "hostname not configured" NGAY LÚC RENDER, sập luôn cả trang chủ/
+// danh mục chứa sản phẩm đó chứ không chỉ ảnh vỡ. Phải lọc bỏ link ngoài domain cho phép ngay ở
+// bước đọc CSV này, không đợi tới lúc hiển thị mới phát hiện.
+const ALLOWED_IMAGE_HOST = process.env.NEXT_PUBLIC_SUPABASE_URL
+  ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
+  : null;
+
+function isAllowedImageUrl(url) {
+  if (!ALLOWED_IMAGE_HOST) return false;
+  try {
+    return new URL(url).hostname === ALLOWED_IMAGE_HOST;
+  } catch {
+    return false;
+  }
+}
+
 function parseImages(text) {
-  return String(text || "")
+  const candidates = String(text || "")
     .split(",")
     .map((s) => s.trim())
     .filter((s) => s.startsWith("http"));
+  const images = candidates.filter(isAllowedImageUrl);
+  return { images, droppedCount: candidates.length - images.length };
 }
 
 function toNumber(value, fallback) {
@@ -147,7 +167,12 @@ export async function parseProductsCsv(formData) {
     }
 
     const variants = parseVariants(pick(row, ["variants", "dòng máy", "dong may"]));
-    const images = parseImages(pick(row, ["images", "ảnh", "anh", "hình ảnh"]));
+    const { images, droppedCount } = parseImages(pick(row, ["images", "ảnh", "anh", "hình ảnh"]));
+    if (droppedCount > 0) {
+      rowErrors.push(
+        `Dòng ${lineNumber}: bỏ qua ${droppedCount} ảnh không phải link từ Supabase Storage của shop (ảnh domain khác sẽ làm lỗi hiển thị) — sản phẩm vẫn được nhập, chỉ thiếu ảnh đó.`
+      );
+    }
     const defaultVariantRaw = String(pick(row, ["default_variant", "dòng máy mặc định"])).trim();
 
     validRows.push({

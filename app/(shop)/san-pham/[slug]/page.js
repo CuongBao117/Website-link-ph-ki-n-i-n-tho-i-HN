@@ -73,7 +73,11 @@ export default async function ProductPage({ params }) {
       <script
         type="application/ld+json"
         // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+        // JSON.stringify() không escape "<" — tên/thông số sản phẩm chứa "</script>" (admin gõ
+        // nhầm, dán từ CSV, hoặc dán nguyên văn caption Zalo) sẽ thoát khỏi thẻ script này và
+        // chạy mã tuỳ ý cho MỌI khách xem trang. Escape "<" thành < để phá chuỗi "</script>"
+        // mà vẫn là JSON hợp lệ (trình duyệt tự giải mã < khi đọc nội dung script).
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd).replace(/</g, "\\u003c") }}
       />
       <div className="breadcrumb">
         <Link href="/">Trang chủ</Link> / {product.category} / {product.name}

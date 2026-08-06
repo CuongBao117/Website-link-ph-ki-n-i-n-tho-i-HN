@@ -4,22 +4,10 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { revalidatePath } from "next/cache";
 import { slugify } from "@/lib/slugify";
 import { requireAdmin } from "@/lib/adminAuth";
+import { uploadProductImage } from "@/lib/imageUpload";
 
 async function uploadSharedImage(file, keyHint, i) {
-  const ext = (file.name?.split(".").pop() || "jpg").toLowerCase();
-  const path = `${keyHint}-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
-
-  const { error } = await supabaseAdmin.storage
-    .from("product-images")
-    .upload(path, file, { upsert: true, contentType: file.type || undefined });
-
-  if (error) {
-    console.error("Lỗi tải ảnh lên:", error.message);
-    return null;
-  }
-
-  const { data } = supabaseAdmin.storage.from("product-images").getPublicUrl(path);
-  return data?.publicUrl || null;
+  return uploadProductImage(file, keyHint, i);
 }
 
 // Tạo hàng loạt sản phẩm cùng 1 mặt hàng nhưng khác dòng máy/giá (vd "Cáp sạc WEIBI iPhone 11",

@@ -33,6 +33,8 @@ export default function Footer() {
             </a>
           </p>
           <p>Email: hotro@linhkien.store</p>
+          <p>Miền Bắc: Vân Xuân, Vĩnh Tường, Vĩnh Phúc</p>
+          <p>Miền Nam: Đạ Ròn, Đơn Dương, Lâm Đồng</p>
         </div>
       </div>
       <div className="foot-bottom">

@@ -378,32 +378,6 @@ main {
   letter-spacing: 0.04em;
 }
 
-/* ===== trust strip ===== */
-.trust-strip {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  background: var(--panel);
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  gap: 20px;
-  padding: 22px 8px;
-  margin-bottom: 56px;
-}
-.trust-strip div {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.trust-strip .code {
-  font-size: 22px;
-  line-height: 1;
-}
-.trust-strip .label {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ink);
-}
-
 /* ===== section head ===== */
 .section-head {
   display: flex;
@@ -1232,9 +1206,6 @@ footer a {
   }
   .pdp {
     grid-template-columns: 1fr;
-  }
-  .trust-strip {
-    grid-template-columns: repeat(2, 1fr);
   }
 }
 

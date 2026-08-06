@@ -25,7 +25,13 @@ export default function Footer() {
         </div>
         <div>
           <h4>LIÊN HỆ</h4>
-          <p>Hotline: 1900 6868</p>
+          <p>Hotline: 0357 105 530</p>
+          <p>
+            Zalo:{" "}
+            <a href="https://zalo.me/0357105530" target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
+              zalo.me/0357105530
+            </a>
+          </p>
           <p>Email: hotro@linhkien.store</p>
         </div>
       </div>

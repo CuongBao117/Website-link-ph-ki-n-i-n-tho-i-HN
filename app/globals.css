@@ -1117,13 +1117,64 @@ nav.catnav.mega-nav {
   text-decoration: underline;
 }
 
-/* banner bên phải — giữ nguyên nội dung/slogan hiện có, chỉ đổi khung hiển thị */
+/* banner bên phải — carousel ảnh nền + nội dung/slogan đè lên trên */
 .hero-promo {
+  position: relative;
   border-radius: 16px;
-  background: var(--teal-soft);
+  background: linear-gradient(135deg, var(--copper) 0%, var(--teal) 100%);
   display: flex;
   align-items: center;
   padding: 44px 48px;
+  overflow: hidden;
+  isolation: isolate;
+}
+/* lớp phủ tối để chữ luôn đọc được, dù có ảnh nền thật hay chỉ có gradient dự phòng */
+.hero-promo::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.72) 0%, rgba(15, 23, 42, 0.4) 55%, rgba(15, 23, 42, 0.08) 100%);
+  z-index: 1;
+}
+.hero-banner-slides {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.hero-banner-slide {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+.hero-banner-slide.is-active {
+  opacity: 1;
+}
+.hero-banner-dots {
+  position: absolute;
+  right: 20px;
+  bottom: 18px;
+  z-index: 2;
+  display: flex;
+  gap: 8px;
+}
+.hero-banner-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  padding: 0;
+}
+.hero-banner-dot.is-active {
+  background: #fff;
+}
+.hero-intro {
+  position: relative;
+  z-index: 2;
 }
 .hero-logo {
   width: 56px;
@@ -1131,6 +1182,7 @@ nav.catnav.mega-nav {
   object-fit: contain;
   margin-bottom: 16px;
   border-radius: 8px;
+  background: #fff;
 }
 .hero-intro h1 {
   font-family: var(--font-display), sans-serif;
@@ -1138,9 +1190,10 @@ nav.catnav.mega-nav {
   line-height: 1.15;
   margin: 0 0 14px;
   letter-spacing: -0.01em;
+  color: #fff;
 }
 .hero-intro p {
-  color: var(--ink-soft);
+  color: rgba(255, 255, 255, 0.88);
   font-size: 15px;
   line-height: 1.6;
   margin-bottom: 26px;
@@ -1149,6 +1202,11 @@ nav.catnav.mega-nav {
 .hero-ctas {
   display: flex;
   gap: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-banner-slide {
+    transition: none;
+  }
 }
 
 /* ===== Hiệu ứng hover trên ảnh sản phẩm ===== */
@@ -1218,6 +1276,112 @@ nav.catnav.mega-nav {
 }
 .home-shortcut:hover {
   background: var(--teal);
+}
+
+/* ===== Dải thông báo khuyến mãi chạy chữ ===== */
+.promo-ticker {
+  background: linear-gradient(90deg, var(--copper-dark), var(--copper));
+  color: #fff;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.promo-ticker__track {
+  display: inline-flex;
+  width: max-content;
+  animation: promo-ticker-scroll 28s linear infinite;
+}
+.promo-ticker:hover .promo-ticker__track {
+  animation-play-state: paused;
+}
+.promo-ticker__item {
+  padding: 8px 32px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+@keyframes promo-ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .promo-ticker__track {
+    animation: none;
+  }
+}
+
+/* ===== Nút nổi Hotline & Zalo ===== */
+.floating-contact {
+  position: fixed;
+  right: 20px;
+  bottom: 24px;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.floating-contact__btn {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  text-decoration: none;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+.floating-contact__btn--zalo {
+  background: #0068ff;
+}
+.floating-contact__btn--zalo:hover {
+  background: #0054cc;
+}
+.floating-contact__zalo-text {
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 800;
+  font-size: 14px;
+  font-style: italic;
+  letter-spacing: -0.02em;
+}
+.floating-contact__btn--phone {
+  background: #22c55e;
+}
+.floating-contact__btn--phone:hover {
+  background: #16a34a;
+}
+.floating-contact__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: inherit;
+  opacity: 0.6;
+  animation: floating-contact-pulse 1.8s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes floating-contact-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+@media (max-width: 640px) {
+  .floating-contact {
+    right: 14px;
+    bottom: 84px;
+  }
+  .floating-contact__btn {
+    width: 46px;
+    height: 46px;
+  }
 }
 
 @media (max-width: 900px) {

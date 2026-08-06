@@ -1,12 +1,14 @@
 import Link from "next/link";
 import Image from "next/image";
 import CategoryShowcase from "@/components/CategoryShowcase";
+import BannerCarousel from "@/components/BannerCarousel";
 
 export default function Hero() {
   return (
     <section className="hero-simple">
       <CategoryShowcase />
       <div className="hero-promo">
+        <BannerCarousel />
         <div className="hero-intro">
           <Image
             src="/logo.png"

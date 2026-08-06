@@ -5,7 +5,7 @@ const ITEMS = [
   "Chuyên sỉ linh phụ kiện điện thoại giá rẻ",
   "Giao hàng COD toàn quốc",
   "Kiểm tra trước khi nhận hàng",
-  "Giá cả cạnh tranh — bảo hành dài",
+  "Giá cả cạnh tranh — Bảo hành dài",
   "Tư vấn nhiệt tình qua Zalo/Hotline",
 ];
 

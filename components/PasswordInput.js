@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 
 export default function PasswordInput({
+  id,
   name,
   required,
   minLength,
@@ -10,7 +11,8 @@ export default function PasswordInput({
   autoComplete,
 }) {
   const [visible, setVisible] = useState(false);
-  const inputId = useId();
+  const generatedId = useId();
+  const inputId = id || generatedId;
 
   return (
     <div className="password-input-wrap">

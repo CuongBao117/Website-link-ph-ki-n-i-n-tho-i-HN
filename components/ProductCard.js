@@ -36,9 +36,9 @@ export default function ProductCard({ product }) {
   return (
     <div className="prod-card">
       {/* "Stretched link" — Link phủ kín cả thẻ (vô hình, không đè lên nội dung vì không có
-          nền/chữ), thay vì bọc trọn ảnh+tên+giá như trước. Nhờ vậy .prod-quick-add nằm THẬT SỰ
-          bên trong .prod-thumb (không còn lồng trong Link nữa — hết lỗi button-trong-a), và định
-          vị right/bottom của nó tính đúng theo khung ảnh 150px, không bị lệch xuống đè lên giá. */}
+          nền/chữ). Đây cũng là cách "nhấn vào hình sản phẩm -> xem chi tiết": khu vực ảnh không bị
+          nút nào che thì click sẽ rơi vào link này. Các nút hành động ở trên có z-index cao hơn
+          nên bấm vào chúng không bị link "nuốt" mất click. */}
       <Link href={`/san-pham/${product.slug}`} className="prod-card-stretched-link" aria-label={product.name} />
 
       <div className={`prod-thumb${product.imageUrl ? "" : " prod-thumb--empty"}`}>
@@ -53,14 +53,31 @@ export default function ProductCard({ product }) {
         )}
         {outOfStock && <span className="prod-oos-badge">HẾT HÀNG</span>}
         {!outOfStock && (
-          <button
-            type="button"
-            className="prod-quick-add"
-            onClick={handleQuickAdd}
-            aria-label={added ? "Đã thêm vào giỏ" : "Thêm nhanh vào giỏ"}
-          >
-            {added ? "✓" : "+"}
-          </button>
+          <>
+            {/* Desktop (có chuột/hover): di chuột vào ảnh hiện 2 lựa chọn */}
+            <div className="prod-hover-actions">
+              <Link
+                href={`/san-pham/${product.slug}`}
+                className="prod-action prod-action--detail"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Xem chi tiết
+              </Link>
+              <button type="button" className="prod-action prod-action--cart" onClick={handleQuickAdd}>
+                {added ? "✓ Đã thêm" : "Thêm vào giỏ hàng"}
+              </button>
+            </div>
+            {/* Mobile/tablet (không có hover): nút thêm vào giỏ hiện sẵn; chạm vào ảnh (ngoài nút)
+                vẫn rơi vào .prod-card-stretched-link để xem chi tiết. */}
+            <button
+              type="button"
+              className="prod-mobile-add"
+              onClick={handleQuickAdd}
+              aria-label={added ? "Đã thêm vào giỏ" : "Thêm vào giỏ hàng"}
+            >
+              {added ? "✓ Đã thêm" : "Thêm vào giỏ hàng"}
+            </button>
+          </>
         )}
       </div>
       <div className="prod-body">

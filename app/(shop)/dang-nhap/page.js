@@ -29,11 +29,24 @@ export default function LoginPage({ searchParams }) {
       <form action={login} className="checkout-form">
         <input type="hidden" name="next" value={next} />
 
-        <label>Email</label>
-        <input type="email" name="email" required autoFocus placeholder="ban@email.com" />
+        <label htmlFor="login-email">Email</label>
+        <input
+          id="login-email"
+          type="email"
+          name="email"
+          required
+          autoComplete="email"
+          placeholder="ban@email.com"
+        />
 
-        <label>Mật khẩu</label>
-        <PasswordInput name="password" required placeholder="Mật khẩu" autoComplete="current-password" />
+        <label htmlFor="login-password">Mật khẩu</label>
+        <PasswordInput
+          id="login-password"
+          name="password"
+          required
+          placeholder="Mật khẩu"
+          autoComplete="current-password"
+        />
 
         <button type="submit" className="btn-primary" style={{ marginTop: 16 }}>
           Đăng nhập

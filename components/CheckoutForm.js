@@ -103,32 +103,44 @@ export default function CheckoutForm({ userEmail }) {
 
       <div className="checkout-grid">
         <form id="checkout-form" className="checkout-form" onSubmit={handleSubmit}>
-          <label>Họ và tên</label>
-          <input required name="name" value={form.name} onChange={handleChange} placeholder="Nguyễn Văn A" />
-
-          <label>Số điện thoại</label>
+          <label htmlFor="checkout-name">Họ và tên</label>
           <input
+            id="checkout-name"
+            required
+            name="name"
+            autoComplete="name"
+            value={form.name}
+            onChange={handleChange}
+            placeholder="Nguyễn Văn A"
+          />
+
+          <label htmlFor="checkout-phone">Số điện thoại</label>
+          <input
+            id="checkout-phone"
             required
             type="tel"
             inputMode="tel"
             name="phone"
+            autoComplete="tel"
             value={form.phone}
             onChange={handleChange}
             placeholder="09xxxxxxxx"
             aria-invalid={phoneInvalid}
           />
 
-          <label>Địa chỉ giao hàng</label>
+          <label htmlFor="checkout-address">Địa chỉ giao hàng</label>
           <input
+            id="checkout-address"
             required
             name="address"
+            autoComplete="street-address"
             value={form.address}
             onChange={handleChange}
             placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành"
           />
 
-          <label>Ghi chú (không bắt buộc)</label>
-          <textarea name="note" value={form.note} onChange={handleChange} rows="3" />
+          <label htmlFor="checkout-note">Ghi chú (không bắt buộc)</label>
+          <textarea id="checkout-note" name="note" value={form.note} onChange={handleChange} rows="3" />
 
           {error && <div className="form-error">{error}</div>}
 

@@ -2,7 +2,7 @@
 // này không lặp lại 2 thông điệp đó nữa (từng đứng ngay sát nhau, đọc trùng thông tin 2 lần liền
 // trước khi thấy nội dung thật), chỉ thêm các thông điệp CHƯA có ở đâu khác trên trang.
 const ITEMS = [
-  "Linh kiện chính hãng — bảo hành rõ ràng",
+  "Linh kiện sỉ giá rẻ",
   "Giao hàng COD toàn quốc, kiểm tra kỹ trước khi nhận",
   "Đổi trả trong 7 ngày nếu sản phẩm lỗi",
   "Tư vấn nhiệt tình qua Zalo/Hotline",

@@ -1,4 +1,7 @@
 :root {
+  --font-display: "Times New Roman", Times, serif;
+  --font-body: "Times New Roman", Times, serif;
+  --font-mono: "Times New Roman", Times, serif;
   --bg: #f5f8ff;
   --panel: #ffffff;
   --ink: #0f172a;
@@ -26,6 +29,7 @@ body {
 body {
   background: var(--bg);
   color: var(--ink);
+  font-family: var(--font-body), serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -490,7 +494,7 @@ main {
 }
 .prod-thumb {
   position: relative;
-  height: 150px;
+  aspect-ratio: 1 / 1;
   background: var(--panel);
 }
 /* Hoạ tiết sọc chéo CHỈ dành cho trạng thái chưa có ảnh — trước đây áp cho mọi thẻ kể cả khi đã
@@ -1324,37 +1328,44 @@ nav.catnav.mega-nav {
 .hero-cat-list {
   display: flex;
   flex-direction: column;
+  gap: 8px;
   flex: 1;
+  padding: 10px;
+  background: var(--bg);
 }
 .hero-cat-item-wrap {
-  border-bottom: 1px solid var(--bg);
-}
-.hero-cat-item-wrap:last-child {
-  border-bottom: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--panel);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 .hero-cat-item {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 14px 18px;
+  padding: 13px 16px;
   font-size: 14px;
   font-weight: 600;
   font-family: inherit;
   color: var(--ink);
   background: var(--panel);
   border: none;
+  border-left: 4px solid var(--copper);
   text-align: left;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 .hero-cat-item:hover {
   background: var(--teal-soft);
   color: var(--teal);
+  border-left-color: var(--teal);
 }
 .hero-cat-item-wrap.open .hero-cat-item {
   background: var(--teal-soft);
   color: var(--teal);
+  border-left-color: var(--teal);
 }
 .hero-cat-icon {
   font-size: 18px;
@@ -1480,35 +1491,84 @@ nav.catnav.mega-nav {
   }
 }
 
-/* ===== Nút "thêm nhanh" trên ảnh sản phẩm ===== */
-/* Trước đây 2 nút "Thêm vào giỏ"/"Xem chi tiết" chỉ hiện khi hover (onMouseEnter/onMouseLeave)
-   — trên điện thoại/máy tính bảng (không có khái niệm hover chuột), tính năng mua nhanh từ lưới
-   sản phẩm coi như VÔ HÌNH với phần lớn khách truy cập. Đồng thời 2 nút đó từng nằm LỒNG bên
-   trong <Link> bao ngoài (button trong a là HTML không hợp lệ, phá tab-order/screen reader).
-   Giờ chỉ còn 1 nút "+" LUÔN hiển thị, đặt trong .prod-thumb — Link giờ là ".prod-card-stretched-
-   link" phủ kín cả thẻ ở tầng riêng (z-index thấp hơn nút này), không còn là ancestor của nút
-   nữa nên hết lồng nhau. "Xem chi tiết" bỏ vì trùng chức năng với việc bấm vào chính thẻ sản
-   phẩm (đã là link tới trang chi tiết). */
-.prod-quick-add {
+/* ===== Hành động trên ảnh sản phẩm: xem chi tiết / thêm vào giỏ ===== */
+/* Desktop (chuột, có hover thật): ẩn mặc định, hiện lớp phủ 2 nút khi di chuột vào ảnh.
+   Mobile/tablet (hover: none — chạm tay không có trạng thái "hover"): ẩn hẳn lớp phủ này, dùng
+   .prod-mobile-add luôn hiển thị sẵn thay thế (xem bên dưới). */
+.prod-hover-actions {
   position: absolute;
-  right: 8px;
-  bottom: 8px;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: none;
-  background: #fff;
-  color: var(--copper-dark);
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  inset: 0;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.55);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s;
 }
-.prod-quick-add:hover {
+@media (hover: hover) {
+  .prod-thumb:hover .prod-hover-actions {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+@media (hover: none) {
+  .prod-hover-actions {
+    display: none;
+  }
+}
+.prod-action {
+  border: none;
+  border-radius: var(--radius);
+  padding: 9px 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+.prod-action--detail {
+  background: #fff;
+  color: var(--ink);
+}
+.prod-action--detail:hover {
+  background: var(--teal-soft);
+  color: var(--teal);
+}
+.prod-action--cart {
   background: var(--copper);
   color: #fff;
+}
+.prod-action--cart:hover {
+  background: var(--copper-dark);
+}
+/* Mobile/tablet: nút "Thêm vào giỏ hàng" hiện sẵn (không cần hover), đặt cố định đáy ảnh. Chạm
+   vào phần ảnh còn lại vẫn rơi vào .prod-card-stretched-link để xem chi tiết. */
+.prod-mobile-add {
+  display: none;
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+  border: none;
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  background: var(--copper);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+@media (hover: none) {
+  .prod-mobile-add {
+    display: block;
+  }
 }
 .prod-oos-badge {
   position: absolute;
@@ -1659,7 +1719,7 @@ nav.catnav.mega-nav {
   background: #0054cc;
 }
 .floating-contact__zalo-text {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), serif;
   font-weight: 800;
   font-size: 14px;
   font-style: italic;

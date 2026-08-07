@@ -795,6 +795,13 @@ export default function NhapZaloForm({ categoryGroups }) {
               {rows.map((r, i) => {
                 const dupInfo = duplicates.find((d) => d.index === i);
                 const useExisting = Boolean(dupInfo?.existingSlug) && duplicateChoice[i] === "existing";
+                // blockingDuplicates (đã có ảnh sẵn) đã có ô chọn riêng, đầy đủ hơn (kèm ảnh so
+                // sánh, chọn giá) ở khối cảnh báo ⚠️ phía trên rồi — ở đây chỉ cần thêm lựa chọn
+                // cho safeDuplicates (trùng tên nhưng CHƯA có ảnh), trước đây tự động gán luôn
+                // không cho sửa, lỡ khớp NHẦM tên (dễ xảy ra khi dán nhiều sản phẩm tên gần giống
+                // nhau cùng lúc) thì không có cách nào chọn lại "tạo mới" thay vì ghi đè nhầm.
+                const isBlocking = Boolean(dupInfo) && (dupInfo.existingHasImages || !dupInfo.existingSlug);
+                const showInlineChoice = Boolean(dupInfo?.existingSlug) && !isBlocking;
                 return (
                   <tr key={r.slug}>
                     <td>{r.name}</td>
@@ -816,12 +823,47 @@ export default function NhapZaloForm({ categoryGroups }) {
                     <td>{r.variants?.length ? `${r.variants.length} dòng máy` : "không gắn dòng máy"}</td>
                     <td>{(photoGroups[i] || []).length} ảnh</td>
                     <td>
-                      {/* Chỉ là NHÃN TRẠNG THÁI cho biết trước điều gì sẽ xảy ra khi bấm "Xác nhận
-                          tạo..." bên dưới — không phải nút/link bấm được (trước đây tô màu xanh đậm
-                          giống link khiến admin tưởng nhầm là bấm được vào đây để cập nhật ảnh). */}
-                      <span className="pdp-badge" title='Chỉ là thông tin — bấm nút "Xác nhận" bên dưới để thực hiện'>
-                        {useExisting ? `Sẽ cập nhật ảnh vào: ${dupInfo.existingName}` : "Sẽ tạo mới"}
-                      </span>
+                      {showInlineChoice ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", fontWeight: 400 }}>
+                            <input
+                              type="radio"
+                              name={`row-dup-${i}`}
+                              checked={duplicateChoice[i] === "existing"}
+                              onChange={() => setDuplicateChoice((prev) => ({ ...prev, [i]: "existing" }))}
+                            />
+                            Cập nhật vào: {dupInfo.existingName}
+                          </label>
+                          <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", fontWeight: 400 }}>
+                            <input
+                              type="radio"
+                              name={`row-dup-${i}`}
+                              checked={duplicateChoice[i] === "new"}
+                              onChange={() => setDuplicateChoice((prev) => ({ ...prev, [i]: "new" }))}
+                            />
+                            Khớp sai tên — tạo sản phẩm mới
+                          </label>
+                          {dupInfo.existingImages?.length > 0 && (
+                            <div style={{ display: "flex", gap: 4, marginTop: 2 }}>
+                              {dupInfo.existingImages.slice(0, 3).map((url, ui) => (
+                                <img
+                                  key={ui}
+                                  src={url}
+                                  alt=""
+                                  onClick={() => setZoomedPhoto(url)}
+                                  style={{ width: 32, height: 32, objectFit: "cover", borderRadius: 4, cursor: "zoom-in", border: "1px solid var(--line)" }}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        /* Chỉ là NHÃN TRẠNG THÁI, không phải nút bấm được — dùng cho blockingDuplicates
+                           (đã có ô chọn riêng ở trên) và trường hợp không trùng ai cả (luôn tạo mới). */
+                        <span className="pdp-badge" title='Chỉ là thông tin — bấm nút "Xác nhận" bên dưới để thực hiện'>
+                          {useExisting ? `Sẽ cập nhật ảnh vào: ${dupInfo.existingName}` : "Sẽ tạo mới"}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );

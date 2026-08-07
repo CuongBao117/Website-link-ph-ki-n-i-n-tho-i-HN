@@ -86,7 +86,14 @@ export async function getProducts() {
 }
 
 export async function getProductBySlug(slug) {
-  const { data, error } = await supabase.from("products").select("*").eq("slug", slug).maybeSingle();
+  // Sản phẩm đang ẩn (xem migration_019) coi như không tồn tại với khách — trang chi tiết sẽ
+  // hiện notFound() thay vì lộ ra dù khách có link trực tiếp/đã lỡ chia sẻ.
+  const { data, error } = await supabase
+    .from("products")
+    .select("*")
+    .eq("slug", slug)
+    .eq("is_hidden", false)
+    .maybeSingle();
   if (error) {
     console.error("Lỗi tải sản phẩm:", error.message);
     return null;
@@ -121,6 +128,7 @@ export async function getRelatedProducts(product, limit = 5) {
     .from("products")
     .select("*")
     .eq("category", product.category)
+    .eq("is_hidden", false)
     .neq("slug", product.slug)
     .limit(limit * 2);
   if (categoryError) {
@@ -133,6 +141,7 @@ export async function getRelatedProducts(product, limit = 5) {
       .from("products")
       .select("*")
       .eq("brand", product.brand)
+      .eq("is_hidden", false)
       .neq("slug", product.slug)
       .limit(limit * 2);
     if (brandError) {
@@ -145,6 +154,7 @@ export async function getRelatedProducts(product, limit = 5) {
     const { data: fallback, error: fallbackError } = await supabase
       .from("products")
       .select("*")
+      .eq("is_hidden", false)
       .neq("slug", product.slug)
       .limit(limit * 2);
     if (fallbackError) {
@@ -208,7 +218,7 @@ export async function getFilteredProducts({
   // Áp cùng 1 bộ điều kiện lọc cho cả truy vấn lấy sản phẩm VÀ truy vấn tính facet,
   // để 2 truy vấn luôn khớp nhau (facet chỉ hiện lựa chọn còn ra kết quả).
   function applyFilters(builder) {
-    let query = builder;
+    let query = builder.eq("is_hidden", false);
     if (category) query = query.eq("category", category);
     if (safeBrand) query = query.eq("brand", safeBrand);
     if (safeVariant) query = query.contains("variants", [safeVariant]);
@@ -280,7 +290,11 @@ export async function getFilteredProducts({
         `code_unaccent.ilike.%${w}%`,
         `variants_text_unaccent.ilike.%${w}%`,
       ]);
-      let suggestQuery = supabase.from("products").select("*").or(orParts.join(","));
+      let suggestQuery = supabase
+        .from("products")
+        .select("*")
+        .eq("is_hidden", false)
+        .or(orParts.join(","));
       if (category) suggestQuery = suggestQuery.eq("category", category);
       const { data: suggestRows, error: suggestError } = await suggestQuery.limit(8);
       if (suggestError) {

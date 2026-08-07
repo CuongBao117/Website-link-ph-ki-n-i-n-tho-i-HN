@@ -2,19 +2,22 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { formatPrice, FACET_ROW_LIMIT } from "@/data/products";
+import { normalizeSearchText, escapeSearchTerm } from "@/lib/searchNormalize";
 import DeleteProductButton from "@/components/DeleteProductButton";
+import ToggleVisibilityButton from "@/components/ToggleVisibilityButton";
 import ProductSavedNotice from "@/components/ProductSavedNotice";
 
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 20;
 
-function buildPageHref({ q, category, brand, variant, page }) {
+function buildPageHref({ q, category, brand, variant, status, page }) {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   if (category && category !== "all") params.set("category", category);
   if (brand && brand !== "all") params.set("brand", brand);
   if (variant && variant !== "all") params.set("variant", variant);
+  if (status && status !== "all") params.set("status", status);
   params.set("page", String(page));
   return `/admin/products?${params.toString()}`;
 }
@@ -24,15 +27,32 @@ export default async function AdminProductsPage({ searchParams }) {
   const categoryFilter = searchParams?.category || "all";
   const brandFilter = searchParams?.brand || "all";
   const variantFilter = searchParams?.variant || "all";
+  // "Đang ẩn" — chỗ để xem danh sách sản phẩm đã bấm ẩn tạm (xem ToggleVisibilityButton).
+  const statusFilter = searchParams?.status || "all";
   const page = Math.max(1, Number(searchParams?.page) || 1);
 
   const { data: categories } = await supabaseAdmin.from("categories").select("*").order("display_order");
 
   let query = supabaseAdmin.from("products").select("*", { count: "exact" });
+  if (statusFilter === "hidden") {
+    query = query.eq("is_hidden", true);
+  } else if (statusFilter === "visible") {
+    query = query.eq("is_hidden", false);
+  }
 
   if (q) {
-    const escaped = q.replace(/[%,]/g, "");
-    query = query.or(`name.ilike.%${escaped}%,code.ilike.%${escaped}%,variants_text.ilike.%${escaped}%`);
+    // Giống hệt tìm kiếm bên trang khách (getFilteredProducts, data/products.js): tách từng từ,
+    // MỖI từ phải khớp đâu đó (AND giữa các từ, OR giữa các cột), so trên cột "..._unaccent" (chữ
+    // thường, không dấu — migration_013) — gõ không dấu, sai thứ tự từ ("pin 13 iphone") vẫn ra
+    // đúng kết quả thay vì phải gõ khớp gần như nguyên văn có dấu như trước.
+    const words = normalizeSearchText(q).split(/\s+/).filter(Boolean);
+    words.forEach((word) => {
+      const escaped = escapeSearchTerm(word);
+      if (!escaped) return;
+      query = query.or(
+        `name_unaccent.ilike.%${escaped}%,code_unaccent.ilike.%${escaped}%,variants_text_unaccent.ilike.%${escaped}%`
+      );
+    });
   }
   if (categoryFilter !== "all") {
     query = query.eq("category", categoryFilter);
@@ -71,7 +91,8 @@ export default async function AdminProductsPage({ searchParams }) {
 
   const totalCount = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const hasFilters = Boolean(q) || categoryFilter !== "all" || brandFilter !== "all" || variantFilter !== "all";
+  const hasFilters =
+    Boolean(q) || categoryFilter !== "all" || brandFilter !== "all" || variantFilter !== "all" || statusFilter !== "all";
 
   return (
     <main>
@@ -115,6 +136,9 @@ export default async function AdminProductsPage({ searchParams }) {
         <Link href="/admin/products/nhap-zalo" className="cart-remove" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
           Nhập từ bài đăng Zalo (kèm ảnh)
         </Link>
+        <Link href="/admin/products/duyet-anh" className="cart-remove" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
+          Duyệt lại ảnh sản phẩm
+        </Link>
       </div>
 
       <form method="GET" className="admin-filter-bar">
@@ -122,7 +146,7 @@ export default async function AdminProductsPage({ searchParams }) {
           type="text"
           name="q"
           defaultValue={q}
-          placeholder="Tìm theo tên hoặc mã sản phẩm..."
+          placeholder="Tìm theo tên hoặc mã sản phẩm... (gõ không dấu vẫn được)"
           className="admin-filter-input"
         />
         <select name="category" defaultValue={categoryFilter} className="sort-select">
@@ -148,6 +172,11 @@ export default async function AdminProductsPage({ searchParams }) {
               {v}
             </option>
           ))}
+        </select>
+        <select name="status" defaultValue={statusFilter} className="sort-select">
+          <option value="all">Tất cả trạng thái</option>
+          <option value="visible">Đang hiện</option>
+          <option value="hidden">Đang ẩn</option>
         </select>
         <button type="submit" className="btn-primary">
           Lọc
@@ -192,7 +221,17 @@ export default async function AdminProductsPage({ searchParams }) {
                     </td>
                     <td>
                       <div className="prod-code">{p.code}</div>
-                      <div style={{ fontWeight: 600, marginTop: 2 }}>{p.name}</div>
+                      <div style={{ fontWeight: 600, marginTop: 2 }}>
+                        {p.name}
+                        {p.is_hidden && (
+                          <span
+                            className="pdp-badge"
+                            style={{ marginLeft: 8, background: "#F3E4E0", color: "#B0503A" }}
+                          >
+                            ĐANG ẨN
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td>{p.category}</td>
                     <td style={{ fontWeight: 700, color: "var(--copper-dark)", whiteSpace: "nowrap" }}>
@@ -218,6 +257,9 @@ export default async function AdminProductsPage({ searchParams }) {
                       >
                         Sửa
                       </Link>
+                      <span style={{ marginRight: 8, display: "inline-block" }}>
+                        <ToggleVisibilityButton slug={p.slug} name={p.name} isHidden={p.is_hidden} />
+                      </span>
                       <DeleteProductButton slug={p.slug} name={p.name} />
                     </td>
                   </tr>
@@ -234,6 +276,7 @@ export default async function AdminProductsPage({ searchParams }) {
                   category: categoryFilter,
                   brand: brandFilter,
                   variant: variantFilter,
+                  status: statusFilter,
                   page: Math.max(1, page - 1),
                 })}
                 className={`cart-remove ${page <= 1 ? "disabled-link" : ""}`}
@@ -250,6 +293,7 @@ export default async function AdminProductsPage({ searchParams }) {
                   category: categoryFilter,
                   brand: brandFilter,
                   variant: variantFilter,
+                  status: statusFilter,
                   page: Math.min(totalPages, page + 1),
                 })}
                 className={`cart-remove ${page >= totalPages ? "disabled-link" : ""}`}

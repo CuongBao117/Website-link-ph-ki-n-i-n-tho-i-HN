@@ -445,12 +445,17 @@ main {
 /* ===== product grid/card ===== */
 .prod-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* 5 cột thay vì 4 — khung ảnh (.prod-thumb, cao cố định 150px) hẹp lại theo chiều ngang, gần
+     tỉ lệ vuông hơn (giống mobile 2 cột), khớp hơn với tỉ lệ ảnh sản phẩm thực tế nên đỡ crop/
+     trống 2 bên hơn so với 4 cột rộng bè trước đây. */
+  grid-template-columns: repeat(5, 1fr);
   gap: 18px;
   margin-bottom: 56px;
 }
 .prod-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
@@ -490,6 +495,12 @@ main {
 }
 .prod-body {
   padding: 14px;
+  display: flex;
+  flex-direction: column;
+  /* .prod-card giờ là flex column, được grid kéo giãn bằng chiều cao hàng cao nhất (mặc định
+     align-items: stretch của .prod-grid) — flex: 1 để .prod-body chiếm hết phần còn lại sau
+     .prod-thumb, làm chỗ dựa cho margin-top: auto ở .prod-mobile-add bên dưới. */
+  flex: 1;
 }
 .prod-code {
   font-family: var(--font-mono), monospace;
@@ -507,6 +518,10 @@ main {
   font-weight: 700;
   color: var(--copper-dark);
   font-size: 16px;
+  /* Khoảng cách CỐ ĐỊNH với phần tử ngay dưới (nút .prod-mobile-add) — giữ nguyên dù nút được
+     đẩy xuống đáy card bằng margin-top: auto (xem .prod-mobile-add), tránh trường hợp card cao
+     nhất trong hàng bị dính sát giá vào nút vì margin-top: auto tự thu về 0 khi hết chỗ trống. */
+  margin-bottom: 10px;
 }
 .prod-price .old {
   font-family: inherit;
@@ -1548,7 +1563,10 @@ nav.catnav.mega-nav {
   position: relative;
   z-index: 2;
   width: 100%;
-  margin-top: 10px;
+  /* auto để nút luôn nằm SÁT ĐÁY card (thẳng hàng nhau giữa các card cùng hàng dù tên sản phẩm
+     dài/ngắn khác nhau) — .prod-card giờ là flex column được grid kéo cùng chiều cao hàng, nên
+     margin-top: auto sẽ đẩy nút xuống hết phần trống còn lại thay vì bám sát ngay dưới giá. */
+  margin-top: auto;
   border: none;
   border-radius: var(--radius);
   padding: 9px 10px;

@@ -802,8 +802,13 @@ export default function NhapZaloForm({ categoryGroups }) {
                     </td>
                     <td>{r.variants?.length ? `${r.variants.length} dòng máy` : "không gắn dòng máy"}</td>
                     <td>{(photoGroups[i] || []).length} ảnh</td>
-                    <td style={{ fontSize: 12.5, color: "var(--teal)", fontWeight: 600 }}>
-                      {useExisting ? `Cập nhật ảnh: ${dupInfo.existingName}` : "Tạo mới"}
+                    <td>
+                      {/* Chỉ là NHÃN TRẠNG THÁI cho biết trước điều gì sẽ xảy ra khi bấm "Xác nhận
+                          tạo..." bên dưới — không phải nút/link bấm được (trước đây tô màu xanh đậm
+                          giống link khiến admin tưởng nhầm là bấm được vào đây để cập nhật ảnh). */}
+                      <span className="pdp-badge" title='Chỉ là thông tin — bấm nút "Xác nhận" bên dưới để thực hiện'>
+                        {useExisting ? `Sẽ cập nhật ảnh vào: ${dupInfo.existingName}` : "Sẽ tạo mới"}
+                      </span>
                     </td>
                   </tr>
                 );

@@ -1188,10 +1188,12 @@ footer a {
   .prod-grid {
     grid-template-columns: repeat(2, 1fr);
     /* .floating-contact (nút tròn Zalo/Gọi, xem phía dưới) là position: fixed ở góc phải màn
-       hình, đè lên bất kỳ nội dung nào cuộn qua đó — kể cả nút "Thêm vào giỏ hàng" của card cột
-       phải (đã bị che 1 phần trên thực tế, xem ảnh báo lỗi). Chừa thêm khoảng trống bên phải cho
-       cả lưới để card cột phải không lấn vào vùng 2 nút tròn đó. */
-    padding-right: 80px;
+       hình (right: 20px, rộng 52px ở breakpoint này — xem @media 640px bên dưới cho size nhỏ
+       hơn), đè lên bất kỳ nội dung nào cuộn qua đó — kể cả nút "Thêm vào giỏ hàng" của card cột
+       phải. main đã có sẵn padding: 24px (xem selector "main" phía trên) nên chỉ cần bù thêm
+       phần CÒN THIẾU (20+52-24=48px), không phải toàn bộ 72px — bù dư sẽ tạo khoảng trống lớn
+       vô lý bên phải lưới (đã xảy ra thực tế, xem ảnh báo lỗi lần 2). */
+    padding-right: 48px;
   }
   .foot-grid {
     grid-template-columns: 1fr 1fr;
@@ -1756,6 +1758,12 @@ nav.catnav.mega-nav {
   .floating-contact__btn {
     width: 46px;
     height: 46px;
+  }
+  /* Nút tròn nhỏ lại ở breakpoint này (14+46=60px tính từ mép, so với 20+52=72px lúc rộng hơn) —
+     giảm bớt phần bù thêm ở .prod-grid cho khớp (60-24 main-padding=36px), tránh dư khoảng trống
+     không cần thiết trên điện thoại như lúc dùng chung 1 giá trị 48px cho mọi kích thước. */
+  .prod-grid {
+    padding-right: 36px;
   }
 }
 

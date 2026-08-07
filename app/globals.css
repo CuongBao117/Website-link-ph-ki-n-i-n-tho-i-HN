@@ -1187,6 +1187,11 @@ footer a {
   }
   .prod-grid {
     grid-template-columns: repeat(2, 1fr);
+    /* .floating-contact (nút tròn Zalo/Gọi, xem phía dưới) là position: fixed ở góc phải màn
+       hình, đè lên bất kỳ nội dung nào cuộn qua đó — kể cả nút "Thêm vào giỏ hàng" của card cột
+       phải (đã bị che 1 phần trên thực tế, xem ảnh báo lỗi). Chừa thêm khoảng trống bên phải cho
+       cả lưới để card cột phải không lấn vào vùng 2 nút tròn đó. */
+    padding-right: 80px;
   }
   .foot-grid {
     grid-template-columns: 1fr 1fr;

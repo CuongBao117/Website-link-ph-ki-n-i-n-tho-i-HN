@@ -62,6 +62,17 @@ export async function placeOrder({ items, customerName, phoneNumber, address, no
     if (msg.includes("PRODUCT_NOT_FOUND")) {
       return { success: false, error: "Một sản phẩm trong giỏ hàng không còn tồn tại — vui lòng làm mới giỏ hàng." };
     }
+    if (msg.includes("PRODUCT_HIDDEN")) {
+      try {
+        const info = JSON.parse(error.details);
+        return {
+          success: false,
+          error: `"${info.name}" hiện đang tạm ngừng bán — vui lòng bỏ khỏi giỏ hàng.`,
+        };
+      } catch {
+        return { success: false, error: "Một sản phẩm trong giỏ hàng hiện đang tạm ngừng bán — vui lòng bỏ khỏi giỏ hàng." };
+      }
+    }
     if (msg.includes("MISSING_CUSTOMER_INFO")) {
       return { success: false, error: "Vui lòng điền đầy đủ họ tên, số điện thoại và địa chỉ." };
     }

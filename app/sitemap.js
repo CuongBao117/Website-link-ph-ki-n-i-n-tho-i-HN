@@ -9,7 +9,11 @@ const MAX_PRODUCTS_IN_SITEMAP = 10000;
 export default async function sitemap() {
   const [{ data: categories }, { data: products }] = await Promise.all([
     supabase.from("categories").select("slug"),
-    supabase.from("products").select("slug, created_at").limit(MAX_PRODUCTS_IN_SITEMAP),
+    supabase
+      .from("products")
+      .select("slug, updated_at")
+      .eq("is_hidden", false)
+      .limit(MAX_PRODUCTS_IN_SITEMAP),
   ]);
 
   const staticEntries = [
@@ -25,7 +29,7 @@ export default async function sitemap() {
 
   const productEntries = (products || []).map((p) => ({
     url: `${SITE_URL}/san-pham/${p.slug}`,
-    lastModified: p.created_at,
+    lastModified: p.updated_at,
     changeFrequency: "weekly",
     priority: 0.5,
   }));

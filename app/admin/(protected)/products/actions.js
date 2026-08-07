@@ -153,3 +153,22 @@ export async function deleteProduct(slug) {
   revalidatePath("/");
   return { success: true };
 }
+
+// Ẩn/hiện sản phẩm TẠM THỜI (xem migration_019) — khác xoá: sản phẩm vẫn còn nguyên trong admin,
+// chỉ tạm biến mất khỏi trang chủ/danh mục/tìm kiếm/đặt hàng cho tới khi bật hiện lại.
+export async function toggleProductVisibility(slug, nextHidden) {
+  const authError = requireAdmin();
+  if (authError) return authError;
+
+  const { error } = await supabaseAdmin.from("products").update({ is_hidden: nextHidden }).eq("slug", slug);
+
+  if (error) {
+    console.error("Lỗi ẩn/hiện sản phẩm:", error.message);
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/admin/products");
+  revalidatePath("/");
+  revalidatePath(`/san-pham/${slug}`);
+  return { success: true };
+}

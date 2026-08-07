@@ -330,6 +330,10 @@ export default function NhapZaloForm({ categoryGroups }) {
           if (!mismatch || !isBlocking || priceChoice[i] === "new") {
             formData.set("price", String(row.price));
           }
+          // Đồng bộ luôn phân loại có giá riêng (Vỏ/Xương...) dán từ bài đăng vào sản phẩm đã có
+          // sẵn — trước đây thiếu dòng này nên attachZaloPhotos không nhận được, sản phẩm mất hẳn
+          // lựa chọn phân loại dù bảng xác nhận đã hiện đúng thông tin.
+          formData.set("priceOptions", JSON.stringify(row.price_options || []));
           files.forEach((f) => formData.append("images", f));
           const res = await attachZaloPhotos(formData);
           perItem.push({ name: row.name, success: res.success, error: res.error, mode: "existing" });

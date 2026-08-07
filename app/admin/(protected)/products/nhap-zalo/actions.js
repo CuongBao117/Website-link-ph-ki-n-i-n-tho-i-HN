@@ -221,6 +221,18 @@ export async function attachZaloPhotos(formData) {
   const slug = formData.get("slug")?.trim();
   const files = formData.getAll("images").filter((f) => typeof f === "object" && f.size > 0);
   const priceRaw = formData.get("price");
+  // Phân loại có giá riêng (Vỏ/Xương...) dán từ bài đăng — trước đây hàm này bỏ sót hoàn toàn,
+  // khiến sản phẩm "gắn vào sản phẩm đã có sẵn" mất hẳn lựa chọn phân loại dù bảng xác nhận ở
+  // NhapZaloForm.js đã hiện đúng thông tin (chỉ nhánh "tạo mới" mới lưu đúng).
+  let priceOptions = null;
+  try {
+    const parsed = JSON.parse(formData.get("priceOptions") || "null");
+    if (Array.isArray(parsed)) {
+      priceOptions = parsed.filter((o) => o && o.name && Number.isFinite(Number(o.price)) && Number(o.price) > 0);
+    }
+  } catch {
+    priceOptions = null;
+  }
   if (!slug || files.length === 0) {
     return { success: false, error: "Thiếu sản phẩm hoặc ảnh." };
   }
@@ -256,6 +268,9 @@ export async function attachZaloPhotos(formData) {
   const price = Number(priceRaw);
   if (priceRaw !== null && Number.isFinite(price) && price > 0 && price !== product.price) {
     update.price = price;
+  }
+  if (priceOptions !== null) {
+    update.price_options = priceOptions;
   }
 
   const { error: updateError } = await supabaseAdmin.from("products").update(update).eq("slug", slug);

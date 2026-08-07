@@ -1,9 +1,33 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
 const HOTLINE = "0357 105 530";
 const HOTLINE_TEL = "0357105530";
 
 export default function FloatingContact() {
+  const [scrolling, setScrolling] = useState(false);
+  const hideTimerRef = useRef(null);
+
+  // Ẩn tạm 2 nút nổi trong lúc đang cuộn (position: fixed nên luôn đè lên bất kỳ nội dung nào
+  // cuộn qua, kể cả nút "Thêm vào giỏ hàng" của card cột phải) — hiện lại ngay sau khi NGỪNG cuộn
+  // ~400ms. Nhờ vậy giữ được layout sát mép như cũ (không cần chừa khoảng trống cố định trong
+  // .prod-grid) mà vẫn tránh được lúc thao tác thật (bấm nút) bị 2 nút này che mất.
+  useEffect(() => {
+    function handleScroll() {
+      setScrolling(true);
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = setTimeout(() => setScrolling(false), 400);
+    }
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      clearTimeout(hideTimerRef.current);
+    };
+  }, []);
+
   return (
-    <div className="floating-contact">
+    <div className={`floating-contact${scrolling ? " floating-contact--hidden" : ""}`}>
       <a
         href={`https://zalo.me/${HOTLINE_TEL}`}
         target="_blank"

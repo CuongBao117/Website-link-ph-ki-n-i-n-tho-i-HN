@@ -7,6 +7,7 @@ import {
   createProductWithImage,
 } from "@/app/admin/(protected)/products/gan-anh/actions";
 import PriceInput from "@/components/PriceInput";
+import SuccessModal from "@/components/SuccessModal";
 
 function formatPrice(value) {
   if (value === null || value === undefined) return "";
@@ -25,6 +26,7 @@ export default function GanAnhBatch({ categoryGroups }) {
   const [lastProduct, setLastProduct] = useState(null); // { slug, name } — để gắn nhanh ảnh tiếp theo cùng sản phẩm
   const [selected, setSelected] = useState(null); // { slug, name, price } — sản phẩm đang chờ xác nhận gắn ảnh (có thể sửa giá)
   const [pendingCreate, setPendingCreate] = useState(null); // { name, price, category, categoryCode, categoryName } — chờ xác nhận trước khi tạo mới
+  const [doneModalOpen, setDoneModalOpen] = useState(false); // vừa xử lý xong toàn bộ lô ảnh — chờ admin bấm OK xác nhận
   const fileInputRef = useRef(null);
 
   const current = queue[index] || null;
@@ -55,11 +57,18 @@ export default function GanAnhBatch({ categoryGroups }) {
     setResults([]);
     setShowCreateForm(false);
     setLastProduct(null);
+    setDoneModalOpen(false);
   }
 
   function goNext(entry) {
     if (entry) setLog((prev) => [...prev, entry]);
-    setIndex((i) => i + 1);
+    setIndex((i) => {
+      const next = i + 1;
+      // Vừa xử lý (gắn/tạo/bỏ qua) xong ảnh CUỐI CÙNG trong lô -> báo "Hoàn tất" ngay, bắt admin
+      // bấm OK xác nhận thay vì chỉ hiện 1 dòng chữ dễ lướt qua như trước.
+      if (next >= queue.length) setDoneModalOpen(true);
+      return next;
+    });
     setQuery("");
     setResults([]);
     setShowCreateForm(false);
@@ -335,6 +344,14 @@ export default function GanAnhBatch({ categoryGroups }) {
           </ul>
         </div>
       )}
+
+      <SuccessModal open={doneModalOpen} success title="Hoàn tất! ✓" onClose={() => setDoneModalOpen(false)}>
+        <p style={{ margin: 0 }}>
+          Đã xử lý xong {queue.length}/{queue.length} ảnh trong lô này — gắn/tạo thành công{" "}
+          {log.filter((l) => l.status !== "skipped").length}, bỏ qua{" "}
+          {log.filter((l) => l.status === "skipped").length}.
+        </p>
+      </SuccessModal>
     </div>
   );
 }

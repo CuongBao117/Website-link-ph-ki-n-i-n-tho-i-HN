@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createProductBatch } from "@/app/admin/(protected)/products/nhap-nhanh/actions";
 import PriceInput from "@/components/PriceInput";
+import SuccessModal from "@/components/SuccessModal";
 
 function formatPrice(value) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "";
@@ -322,20 +323,18 @@ export default function NhapNhanhForm({ categoryGroups }) {
         </div>
       )}
 
-      {result && (
-        <div
-          className="empty-state"
-          style={{ marginTop: 20, textAlign: "left", borderColor: result.success ? "var(--teal)" : "#B0503A" }}
-        >
-          {result.success ? (
-            <p style={{ fontWeight: 600, color: "var(--teal)", margin: 0 }}>
-              Đã tạo thành công {result.count} sản phẩm.
-            </p>
-          ) : (
-            <p style={{ fontWeight: 600, color: "#B0503A", margin: 0 }}>Lỗi: {result.error}</p>
-          )}
-        </div>
-      )}
+      <SuccessModal
+        open={!!result}
+        success={result?.success}
+        title={result?.success ? "Hoàn tất! ✓" : "Có lỗi xảy ra"}
+        onClose={() => setResult(null)}
+      >
+        {result?.success ? (
+          <p style={{ margin: 0 }}>Đã tạo thành công {result.count} sản phẩm.</p>
+        ) : (
+          <p style={{ margin: 0 }}>Lỗi: {result?.error}</p>
+        )}
+      </SuccessModal>
     </div>
   );
 }

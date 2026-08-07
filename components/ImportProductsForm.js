@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { parseProductsCsv, commitProductsCsv } from "@/app/admin/(protected)/products/import/actions";
+import SuccessModal from "@/components/SuccessModal";
 
 const COLUMNS = [
   { name: "name", required: true, example: "Màn hình iPhone 13 — Zin bóc máy" },
@@ -201,31 +202,31 @@ export default function ImportProductsForm() {
         </div>
       )}
 
-      {commitResult && (
-        <div
-          className="empty-state"
-          style={{ marginTop: 20, textAlign: "left", borderColor: commitResult.success ? "var(--teal)" : "#B0503A" }}
-        >
-          {commitResult.error ? (
-            <p style={{ color: "#B0503A", fontWeight: 600 }}>{commitResult.error}</p>
-          ) : (
-            <p style={{ fontWeight: 600, color: commitResult.success ? "var(--teal)" : "#B0503A" }}>
-              Đã lưu {commitResult.insertedCount} sản phẩm thành công.
-            </p>
-          )}
+      <SuccessModal
+        open={!!commitResult}
+        success={commitResult?.success}
+        title={commitResult?.success ? "Hoàn tất! ✓" : "Có lỗi xảy ra"}
+        onClose={() => setCommitResult(null)}
+      >
+        {commitResult?.error ? (
+          <p style={{ color: "#B0503A", fontWeight: 600, margin: 0 }}>{commitResult.error}</p>
+        ) : (
+          <p style={{ fontWeight: 600, color: commitResult?.success ? "var(--teal)" : "#B0503A", margin: 0 }}>
+            Đã lưu {commitResult?.insertedCount} sản phẩm thành công.
+          </p>
+        )}
 
-          {commitResult.batchErrors?.length > 0 && (
-            <>
-              <p style={{ fontWeight: 600, marginBottom: 4 }}>Lỗi khi ghi vào cơ sở dữ liệu:</p>
-              <ul>
-                {commitResult.batchErrors.map((e, i) => (
-                  <li key={i}>{e}</li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
-      )}
+        {commitResult?.batchErrors?.length > 0 && (
+          <>
+            <p style={{ fontWeight: 600, marginBottom: 4 }}>Lỗi khi ghi vào cơ sở dữ liệu:</p>
+            <ul>
+              {commitResult.batchErrors.map((e, i) => (
+                <li key={i}>{e}</li>
+              ))}
+            </ul>
+          </>
+        )}
+      </SuccessModal>
     </main>
   );
 }

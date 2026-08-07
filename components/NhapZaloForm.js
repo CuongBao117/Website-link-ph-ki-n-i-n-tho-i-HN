@@ -178,7 +178,12 @@ export default function NhapZaloForm({ categoryGroups }) {
     const row = rows[d.index];
     return row && Number(row.price) !== Number(d.existingPrice);
   }
-  const pendingPriceChoices = duplicates.filter(
+  // CHỈ chặn nút Xác nhận vì lý do "chưa chọn dùng giá nào" đối với blockingDuplicates — đây là
+  // nhóm DUY NHẤT có hiện giao diện chọn "dùng giá mới/giữ giá cũ" (xem blockingDuplicates.map
+  // bên dưới). safeDuplicates (chưa có ảnh, đã hứa "không cần xác nhận thêm") không có giao diện
+  // đó — trước đây pendingPriceChoices lỡ tính luôn cả safeDuplicates bị lệch giá, khoá cứng nút
+  // Xác nhận vĩnh viễn mà không có cách nào gỡ (không có ô nào để bấm chọn).
+  const pendingPriceChoices = blockingDuplicates.filter(
     (d) => duplicateChoice[d.index] === "existing" && priceMismatch(d) && !priceChoice[d.index]
   );
   const canCommit = Boolean(rows?.length) && (blockingDuplicates.length === 0 || duplicatesAck) && pendingPriceChoices.length === 0;
@@ -317,8 +322,12 @@ export default function NhapZaloForm({ categoryGroups }) {
           formData.set("slug", dupInfo.existingSlug);
           // Chỉ gửi giá mới nếu KHÔNG lệch giá đang lưu, hoặc admin đã chủ động chọn "dùng giá
           // mới" khi có lệch — giữ nguyên giá cũ nếu admin chọn "giữ giá cũ", không âm thầm ghi đè.
+          // Riêng safeDuplicates (chưa có ảnh sẵn) không có bước chọn này (xem pendingPriceChoices
+          // ở trên) nên LUÔN dùng giá mới — đúng mục đích tính năng là đồng bộ giá mới nhất từ
+          // bài đăng, không lặng lẽ bỏ qua giá mới chỉ vì thiếu ảnh.
           const mismatch = priceMismatch(dupInfo);
-          if (!mismatch || priceChoice[i] === "new") {
+          const isBlocking = dupInfo.existingHasImages || !dupInfo.existingSlug;
+          if (!mismatch || !isBlocking || priceChoice[i] === "new") {
             formData.set("price", String(row.price));
           }
           files.forEach((f) => formData.append("images", f));
@@ -668,7 +677,7 @@ export default function NhapZaloForm({ categoryGroups }) {
           {safeDuplicates.length > 0 && (
             <p style={{ fontSize: 12.5, color: "var(--ink-soft)", marginBottom: 14 }}>
               ℹ️ {safeDuplicates.length} sản phẩm trùng tên với sản phẩm đã có sẵn NHƯNG chưa có ảnh nào —
-              tự động cập nhật thêm ảnh, không cần xác nhận thêm.
+              tự động cập nhật thêm ảnh và giá mới (nếu giá dán vào khác giá đang lưu), không cần xác nhận thêm.
             </p>
           )}
 

@@ -7,7 +7,8 @@ import { getCategories, getFilteredProducts } from "@/data/products";
 // khu vực xem trước; trang chi tiết sản phẩm và giỏ hàng/đặt hàng vẫn luôn real-time.
 export const revalidate = 60;
 
-const PREVIEW_COUNT = 8;
+// Bội số của 5 (số cột lưới sản phẩm trên desktop, xem .prod-grid) để hàng preview luôn lấp đầy.
+const PREVIEW_COUNT = 10;
 
 export default async function HomePage() {
   const allCategories = await getCategories();

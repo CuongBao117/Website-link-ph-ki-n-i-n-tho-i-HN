@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import ProductCard from "@/components/ProductCard";
 
-const PAGE_SIZE = 12;
+// Phải khớp với pageSize mặc định trong getFilteredProducts (data/products.js) — chỉ dùng ở đây
+// để tính totalPages hiển thị, dữ liệu thật do server phân trang.
+const PAGE_SIZE = 15;
 
 function formatPriceInput(digits) {
   if (!digits) return "";

@@ -106,7 +106,7 @@ export async function getProductsByCategory(slug) {
 // "Sản phẩm liên quan" — ưu tiên CÙNG DANH MỤC, thiếu thì bù bằng cùng HÃNG, thiếu nữa thì
 // mới lấy đại sản phẩm khác (để mục này không bao giờ trống trên catalog còn ít hàng), nhưng
 // không bao giờ lẫn sản phẩm hoàn toàn không liên quan khi đã đủ hàng cùng danh mục/hãng.
-export async function getRelatedProducts(product, limit = 4) {
+export async function getRelatedProducts(product, limit = 5) {
   if (!product?.slug) return [];
 
   const picked = new Map();
@@ -178,7 +178,9 @@ export async function getFilteredProducts({
   maxPrice,
   sort = "default",
   page = 1,
-  pageSize = 12,
+  // Bội số của 5 (số cột lưới sản phẩm trên desktop, xem .prod-grid) để hàng cuối mỗi trang
+  // luôn lấp đầy, không để trống vài ô trông như thiếu hàng (12 cũ hợp với lưới 4 cột trước đây).
+  pageSize = 15,
   withFacets = true,
 } = {}) {
   // Validate 2 ô giá lấy từ URL (?minPrice=...&maxPrice=...) — người dùng có thể tự sửa link

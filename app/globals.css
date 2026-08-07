@@ -445,7 +445,10 @@ main {
 /* ===== product grid/card ===== */
 .prod-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* 5 cột thay vì 4 — khung ảnh (.prod-thumb, cao cố định 150px) hẹp lại theo chiều ngang, gần
+     tỉ lệ vuông hơn (giống mobile 2 cột), khớp hơn với tỉ lệ ảnh sản phẩm thực tế nên đỡ crop/
+     trống 2 bên hơn so với 4 cột rộng bè trước đây. */
+  grid-template-columns: repeat(5, 1fr);
   gap: 18px;
   margin-bottom: 56px;
 }

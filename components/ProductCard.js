@@ -47,7 +47,7 @@ export default function ProductCard({ product }) {
             src={product.imageUrl}
             alt={product.name}
             fill
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 200px"
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
             style={{ objectFit: "cover" }}
           />
         )}

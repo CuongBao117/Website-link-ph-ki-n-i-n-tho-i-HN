@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { formatPrice, FACET_ROW_LIMIT } from "@/data/products";
+import { normalizeSearchText, escapeSearchTerm } from "@/lib/searchNormalize";
 import DeleteProductButton from "@/components/DeleteProductButton";
 import ProductSavedNotice from "@/components/ProductSavedNotice";
 
@@ -31,8 +32,18 @@ export default async function AdminProductsPage({ searchParams }) {
   let query = supabaseAdmin.from("products").select("*", { count: "exact" });
 
   if (q) {
-    const escaped = q.replace(/[%,]/g, "");
-    query = query.or(`name.ilike.%${escaped}%,code.ilike.%${escaped}%,variants_text.ilike.%${escaped}%`);
+    // Giống hệt tìm kiếm bên trang khách (getFilteredProducts, data/products.js): tách từng từ,
+    // MỖI từ phải khớp đâu đó (AND giữa các từ, OR giữa các cột), so trên cột "..._unaccent" (chữ
+    // thường, không dấu — migration_013) — gõ không dấu, sai thứ tự từ ("pin 13 iphone") vẫn ra
+    // đúng kết quả thay vì phải gõ khớp gần như nguyên văn có dấu như trước.
+    const words = normalizeSearchText(q).split(/\s+/).filter(Boolean);
+    words.forEach((word) => {
+      const escaped = escapeSearchTerm(word);
+      if (!escaped) return;
+      query = query.or(
+        `name_unaccent.ilike.%${escaped}%,code_unaccent.ilike.%${escaped}%,variants_text_unaccent.ilike.%${escaped}%`
+      );
+    });
   }
   if (categoryFilter !== "all") {
     query = query.eq("category", categoryFilter);
@@ -125,7 +136,7 @@ export default async function AdminProductsPage({ searchParams }) {
           type="text"
           name="q"
           defaultValue={q}
-          placeholder="Tìm theo tên hoặc mã sản phẩm..."
+          placeholder="Tìm theo tên hoặc mã sản phẩm... (gõ không dấu vẫn được)"
           className="admin-filter-input"
         />
         <select name="category" defaultValue={categoryFilter} className="sort-select">

@@ -53,31 +53,19 @@ export default function ProductCard({ product }) {
         )}
         {outOfStock && <span className="prod-oos-badge">HẾT HÀNG</span>}
         {!outOfStock && (
-          <>
-            {/* Desktop (có chuột/hover): di chuột vào ảnh hiện 2 lựa chọn */}
-            <div className="prod-hover-actions">
-              <Link
-                href={`/san-pham/${product.slug}`}
-                className="prod-action prod-action--detail"
-                onClick={(e) => e.stopPropagation()}
-              >
-                Xem chi tiết
-              </Link>
-              <button type="button" className="prod-action prod-action--cart" onClick={handleQuickAdd}>
-                {added ? "✓ Đã thêm" : "Thêm vào giỏ hàng"}
-              </button>
-            </div>
-            {/* Mobile/tablet (không có hover): nút thêm vào giỏ hiện sẵn; chạm vào ảnh (ngoài nút)
-                vẫn rơi vào .prod-card-stretched-link để xem chi tiết. */}
-            <button
-              type="button"
-              className="prod-mobile-add"
-              onClick={handleQuickAdd}
-              aria-label={added ? "Đã thêm vào giỏ" : "Thêm vào giỏ hàng"}
+          /* Desktop (có chuột/hover): di chuột vào ảnh hiện 2 lựa chọn */
+          <div className="prod-hover-actions">
+            <Link
+              href={`/san-pham/${product.slug}`}
+              className="prod-action prod-action--detail"
+              onClick={(e) => e.stopPropagation()}
             >
+              Xem chi tiết
+            </Link>
+            <button type="button" className="prod-action prod-action--cart" onClick={handleQuickAdd}>
               {added ? "✓ Đã thêm" : "Thêm vào giỏ hàng"}
             </button>
-          </>
+          </div>
         )}
       </div>
       <div className="prod-body">
@@ -89,6 +77,18 @@ export default function ProductCard({ product }) {
             : formatPrice(displayPrice.price)}
           {!displayPrice.isRange && product.oldPrice && <span className="old">{formatPrice(product.oldPrice)}</span>}
         </div>
+        {!outOfStock && (
+          /* Mobile/tablet (không có hover): nút thêm vào giỏ hiện sẵn dưới giá, không đè lên ảnh
+             nữa (trước đây đặt tuyệt đối trên .prod-thumb, che mất góc ảnh sản phẩm). */
+          <button
+            type="button"
+            className="prod-mobile-add"
+            onClick={handleQuickAdd}
+            aria-label={added ? "Đã thêm vào giỏ" : "Thêm vào giỏ hàng"}
+          >
+            {added ? "✓ Đã thêm" : "Thêm vào giỏ hàng"}
+          </button>
+        )}
       </div>
     </div>
   );

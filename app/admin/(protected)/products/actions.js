@@ -111,7 +111,7 @@ export async function createProduct(formData) {
 
   revalidatePath("/admin/products");
   revalidatePath("/");
-  redirect("/admin/products");
+  redirect("/admin/products?created=1");
 }
 
 export async function updateProduct(slug, formData) {
@@ -135,7 +135,7 @@ export async function updateProduct(slug, formData) {
   revalidatePath("/admin/products");
   revalidatePath("/");
   revalidatePath(`/san-pham/${slug}`);
-  redirect("/admin/products");
+  redirect("/admin/products?updated=1");
 }
 
 export async function deleteProduct(slug) {

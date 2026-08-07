@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { formatPrice, FACET_ROW_LIMIT } from "@/data/products";
 import DeleteProductButton from "@/components/DeleteProductButton";
+import ProductSavedNotice from "@/components/ProductSavedNotice";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +75,9 @@ export default async function AdminProductsPage({ searchParams }) {
 
   return (
     <main>
+      <Suspense fallback={null}>
+        <ProductSavedNotice />
+      </Suspense>
       <div className="section-head">
         <h2>Quản trị — Sản phẩm</h2>
         <span className="idx">{totalCount} SẢN PHẨM</span>

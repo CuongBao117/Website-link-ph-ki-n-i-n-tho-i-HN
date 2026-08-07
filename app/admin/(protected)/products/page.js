@@ -120,13 +120,6 @@ export default async function AdminProductsPage({ searchParams }) {
           Nhập hàng loạt từ CSV
         </Link>
         <Link
-          href="/admin/products/gan-anh"
-          className="cart-remove"
-          style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}
-        >
-          Gán ảnh hàng loạt
-        </Link>
-        <Link
           href="/admin/products/nhap-nhanh"
           className="cart-remove"
           style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}

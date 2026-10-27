@@ -77,12 +77,23 @@ export async function getCategoryBySlug(slug) {
 }
 
 export async function getProducts() {
-  const { data, error } = await supabase.from("products").select("*").order("code");
+  let { data, error } = await supabase
+    .from("products")
+    .select("*")
+    .order("has_image", { ascending: false })
+    .order("code");
+
+  if (error && (error.message?.includes("has_image") || error.code === "42703")) {
+    const fallback = await supabase.from("products").select("*").order("code");
+    data = fallback.data;
+    error = fallback.error;
+  }
+
   if (error) {
     console.error("Lỗi tải sản phẩm:", error.message);
     return [];
   }
-  return data.map(mapProductRow);
+  return (data || []).map(mapProductRow);
 }
 
 export async function getProductBySlug(slug) {
@@ -102,12 +113,24 @@ export async function getProductBySlug(slug) {
 }
 
 export async function getProductsByCategory(slug) {
-  const { data, error } = await supabase.from("products").select("*").eq("category", slug).order("code");
+  let { data, error } = await supabase
+    .from("products")
+    .select("*")
+    .eq("category", slug)
+    .order("has_image", { ascending: false })
+    .order("code");
+
+  if (error && (error.message?.includes("has_image") || error.code === "42703")) {
+    const fallback = await supabase.from("products").select("*").eq("category", slug).order("code");
+    data = fallback.data;
+    error = fallback.error;
+  }
+
   if (error) {
     console.error("Lỗi tải sản phẩm theo danh mục:", error.message);
     return [];
   }
-  return data.map(mapProductRow);
+  return (data || []).map(mapProductRow);
 }
 
 // "Sản phẩm liên quan" — ưu tiên CÙNG DANH MỤC, thiếu thì bù bằng cùng HÃNG, thiếu nữa thì
@@ -246,15 +269,22 @@ export async function getFilteredProducts({
     return query;
   }
 
-  let mainQuery = applyFilters(supabase.from("products").select("*", { count: "exact" }));
-  mainQuery =
-    sort === "price-asc"
-      ? mainQuery.order("price", { ascending: true })
+  function buildSortedQuery(includeHasImage = true) {
+    let query = applyFilters(supabase.from("products").select("*", { count: "exact" }));
+    if (includeHasImage) {
+      // Ưu tiên sản phẩm đã có ảnh lên đầu trang
+      query = query.order("has_image", { ascending: false });
+    }
+    return sort === "price-asc"
+      ? query.order("price", { ascending: true })
       : sort === "price-desc"
-      ? mainQuery.order("price", { ascending: false })
+      ? query.order("price", { ascending: false })
       : sort === "newest"
-      ? mainQuery.order("created_at", { ascending: false })
-      : mainQuery.order("code", { ascending: true });
+      ? query.order("created_at", { ascending: false })
+      : query.order("code", { ascending: true });
+  }
+
+  const mainQuery = buildSortedQuery(true);
 
   // Chặn số trang vượt quá thực tế — trước đây bấm/gõ ?page=999 sẽ ra "products" rỗng nhưng
   // "totalCount" vẫn > 0, hiện dòng "không tìm thấy sản phẩm" gây hiểu lầm là hết hàng. Kẹp lại
@@ -265,7 +295,17 @@ export async function getFilteredProducts({
   const from = (requestedPage - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  const { data: rows, error, count } = await mainQuery.range(from, to);
+  let { data: rows, error, count } = await mainQuery.range(from, to);
+
+  // Dự phòng an toàn: nếu Supabase chưa kịp chạy migration_020 (chưa có cột has_image),
+  // tự động fallback truy vấn thông thường để trang web luôn hoạt động ổn định.
+  if (error && (error.message?.includes("has_image") || error.code === "42703")) {
+    const fallbackRes = await buildSortedQuery(false).range(from, to);
+    rows = fallbackRes.data;
+    error = fallbackRes.error;
+    count = fallbackRes.count;
+  }
+
   if (error) {
     console.error("Lỗi tải sản phẩm:", error.message);
     return { products: [], totalCount: 0, totalPages: 1, facets: { brands: [], variants: [] } };

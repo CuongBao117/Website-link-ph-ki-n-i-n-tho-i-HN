@@ -11,13 +11,14 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 20;
 
-function buildPageHref({ q, category, brand, variant, status, page }) {
+function buildPageHref({ q, category, brand, variant, status, image, page }) {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   if (category && category !== "all") params.set("category", category);
   if (brand && brand !== "all") params.set("brand", brand);
   if (variant && variant !== "all") params.set("variant", variant);
   if (status && status !== "all") params.set("status", status);
+  if (image && image !== "all") params.set("image", image);
   params.set("page", String(page));
   return `/admin/products?${params.toString()}`;
 }
@@ -29,6 +30,8 @@ export default async function AdminProductsPage({ searchParams }) {
   const variantFilter = searchParams?.variant || "all";
   // "Đang ẩn" — chỗ để xem danh sách sản phẩm đã bấm ẩn tạm (xem ToggleVisibilityButton).
   const statusFilter = searchParams?.status || "all";
+  // "Ảnh" — lọc sản phẩm đã có ảnh hoặc chưa có ảnh để tiện bổ sung ảnh
+  const imageFilter = searchParams?.image || "all";
   const page = Math.max(1, Number(searchParams?.page) || 1);
 
   const { data: categories } = await supabaseAdmin.from("categories").select("*").order("display_order");
@@ -38,6 +41,12 @@ export default async function AdminProductsPage({ searchParams }) {
     query = query.eq("is_hidden", true);
   } else if (statusFilter === "visible") {
     query = query.eq("is_hidden", false);
+  }
+
+  if (imageFilter === "has_image") {
+    query = query.not("image_url", "is", null);
+  } else if (imageFilter === "no_image") {
+    query = query.is("image_url", null);
   }
 
   if (q) {
@@ -92,7 +101,12 @@ export default async function AdminProductsPage({ searchParams }) {
   const totalCount = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const hasFilters =
-    Boolean(q) || categoryFilter !== "all" || brandFilter !== "all" || variantFilter !== "all" || statusFilter !== "all";
+    Boolean(q) ||
+    categoryFilter !== "all" ||
+    brandFilter !== "all" ||
+    variantFilter !== "all" ||
+    statusFilter !== "all" ||
+    imageFilter !== "all";
 
   return (
     <main>
@@ -170,6 +184,11 @@ export default async function AdminProductsPage({ searchParams }) {
           <option value="all">Tất cả trạng thái</option>
           <option value="visible">Đang hiện</option>
           <option value="hidden">Đang ẩn</option>
+        </select>
+        <select name="image" defaultValue={imageFilter} className="sort-select">
+          <option value="all">Tất cả ảnh</option>
+          <option value="has_image">Đã có ảnh</option>
+          <option value="no_image">Chưa có ảnh</option>
         </select>
         <button type="submit" className="btn-primary">
           Lọc
@@ -270,6 +289,7 @@ export default async function AdminProductsPage({ searchParams }) {
                   brand: brandFilter,
                   variant: variantFilter,
                   status: statusFilter,
+                  image: imageFilter,
                   page: Math.max(1, page - 1),
                 })}
                 className={`cart-remove ${page <= 1 ? "disabled-link" : ""}`}
@@ -287,6 +307,7 @@ export default async function AdminProductsPage({ searchParams }) {
                   brand: brandFilter,
                   variant: variantFilter,
                   status: statusFilter,
+                  image: imageFilter,
                   page: Math.min(totalPages, page + 1),
                 })}
                 className={`cart-remove ${page >= totalPages ? "disabled-link" : ""}`}
